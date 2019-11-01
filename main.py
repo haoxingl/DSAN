@@ -8,7 +8,7 @@ assert dataset == 'taxi' or dataset == 'bike'
 from ModelTrainer import ModelTrainer
 
 if __name__ == "__main__":
-    for index in range(10, 50):
+    for index in range(1, 2):
         print('Model index: {}'.format(index))
         model_index = dataset + '_{}'.format(index)
         model_trainer = ModelTrainer(model_index, dataset)
