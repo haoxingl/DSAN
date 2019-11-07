@@ -25,49 +25,47 @@ parser.add_argument('--weight_t', default=0.3)
 parser.add_argument('--remove_old_files', default=True)
 parser.add_argument('--MAX_EPOCH', default=500)
 parser.add_argument('--BATCH_SIZE', default=64)
-parser.add_argument('--earlystop_patience_stream_t', default=10)
-parser.add_argument('--earlystop_patience_stsan', default=15)
+# parser.add_argument('--earlystop_patience_stream_t', default=10)
+parser.add_argument('--es_patience', default=15)
 parser.add_argument('--warmup_steps', default=4000)
 parser.add_argument('--verbose_train', default=1)
 
 """ Data hyperparameters """
-num_weeks_hist = 0
-num_days_hist = 7
-num_intervals_hist = 3
-num_intervals_curr = 1
-num_intervals_before_predict = 1
-num_intervals_enc = (num_weeks_hist + num_days_hist) * num_intervals_hist + num_intervals_curr
+n_hist_week = 0
+n_hist_day = 7
+n_hist_int = 3
+n_curr_int = 1
+n_int_before = 1
+n_int_enc = (n_hist_week + n_hist_day) * n_hist_int + n_curr_int
 parser.add_argument('--load_saved_data', default=True)
-parser.add_argument('--num_weeks_hist', default=num_weeks_hist, help='num of previous weeks to consider')
-parser.add_argument('--num_days_hist', default=num_days_hist, help='num of previous days to consider')
-parser.add_argument('--num_intervals_hist', default=num_intervals_hist, help='num of time in previous days to consider')
-parser.add_argument('--num_intervals_curr', default=num_intervals_curr, help='num of time in today to consider')
-parser.add_argument('--num_intervals_before_predict', default=1, help='num of time before predicted time to consider')
-parser.add_argument('--num_intervals_enc', default=num_intervals_enc, help='total length of historical data')
-parser.add_argument('--local_block_len', default=3, help='halved size of local cnn filter')
+parser.add_argument('--n_hist_week', default=n_hist_week, help='num of previous weeks to consider')
+parser.add_argument('--n_hist_day', default=n_hist_day, help='num of previous days to consider')
+parser.add_argument('--n_hist_int', default=n_hist_int, help='num of time in previous days to consider')
+parser.add_argument('--n_curr_int', default=n_curr_int, help='num of time in today to consider')
+parser.add_argument('--n_int_before', default=1, help='num of time before predicted time to consider')
+parser.add_argument('--n_int_enc', default=n_int_enc, help='total length of historical data')
 
 args = parser.parse_args()
 
 print("num_layers: {}, d_model: {}, dff: {}, num_heads: {}, cnn_layers: {}, cnn_filters: {}" \
       .format(args.num_layers, args.d_model, args.dff, args.num_heads, args.cnn_layers, args.cnn_filters))
 print(
-    "BATCH_SIZE: {}, earlystop_patience_stream_t: {}, earlystop_patience_stsan: {}".format(
-        args.BATCH_SIZE, args.earlystop_patience_stream_t, args.earlystop_patience_stsan))
+    "BATCH_SIZE: {}, es_patience: {}".format(
+        args.BATCH_SIZE, args.es_patience))
 print(
-    "num_weeks_hist: {}, num_days_hist: {}, num_intervals_hist: {}, num_intervals_curr: {}, num_intervals_before_predict: {}, local_block_len: {}" \
-        .format(args.num_weeks_hist,
-                args.num_days_hist,
-                args.num_intervals_hist,
-                args.num_intervals_curr,
-                args.num_intervals_before_predict,
-                args.local_block_len))
+    "n_hist_week: {}, n_hist_day: {}, n_hist_int: {}, n_curr_int: {}, n_int_before: {}" \
+        .format(args.n_hist_week,
+                args.n_hist_day,
+                args.n_hist_int,
+                args.n_curr_int,
+                args.n_int_before))
 
 # os.environ['F_ENABLE_AUTO_MIXED_PRECISION'] = '1'
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_ids
 
-print("Dataset chosen: {}".format(args.dataset))
 assert args.dataset == 'taxi' or args.dataset == 'bike'
+print("Dataset chosen: {}".format(args.dataset))
 
 from ModelTrainer import ModelTrainer
 

@@ -6,21 +6,19 @@ from tensorflow.keras import layers, Model, Sequential
 from tensorflow.keras.activations import sigmoid
 
 from tensorflow_addons.activations import gelu
+
 # from tensorflow_addons import layers as tfa_layers
 
 final_cnn_filters = 128
 
-
 # @tf.function(experimental_relax_shapes=True)
 # def gelu(x):
-#   cdf = 0.5 * (1.0 + tf.tanh(
-#       (np.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3)))))
-#   return x * cdf
-#
+#     cdf = 0.5 * (1.0 + tf.tanh(
+#         (np.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3)))))
+#     return x * cdf
+
 
 """ the local convolutional layer before the encoder and deconder stacks """
-
-
 class Local_Conv(layers.Layer):
     def __init__(self, num_layers, num_filters, num_intervals, dropout_rate=0.1):
         super(Local_Conv, self).__init__()

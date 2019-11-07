@@ -15,22 +15,22 @@ class DataLoader:
             raise Exception
 
     def load_flow(self):
-        self.flow_train = np.array(np.load(self.parameters.flow_train)['flow'],
-                                   dtype=np.float32) / self.parameters.flow_train_max
-        self.flow_test = np.array(np.load(self.parameters.flow_test)['flow'],
-                                  dtype=np.float32) / self.parameters.flow_train_max
+        self.flow_train = np.array(np.load(self.parameters.f_train)['flow'],
+                                   dtype=np.float32) / self.parameters.f_train_max
+        self.flow_test = np.array(np.load(self.parameters.f_test)['flow'],
+                                  dtype=np.float32) / self.parameters.f_train_max
 
     def load_trans(self):
-        self.trans_train = np.array(np.load(self.parameters.trans_train)['trans'],
-                                    dtype=np.float32) / self.parameters.trans_train_max
-        self.trans_test = np.array(np.load(self.parameters.trans_test)['trans'],
-                                   dtype=np.float32) / self.parameters.trans_train_max
+        self.trans_train = np.array(np.load(self.parameters.t_train)['trans'],
+                                    dtype=np.float32) / self.parameters.t_train_max
+        self.trans_test = np.array(np.load(self.parameters.t_test)['trans'],
+                                   dtype=np.float32) / self.parameters.t_train_max
 
     """ external_knowledge contains the time and weather information of each time interval """
 
     def load_external_knowledge(self):
-        self.ex_knlg_data_train = np.load(self.parameters.external_knowledge_train)['external_knowledge']
-        self.ex_knlg_data_test = np.load(self.parameters.external_knowledge_test)['external_knowledge']
+        self.ex_knlg_data_train = np.load(self.parameters.ex_train)['external_knowledge']
+        self.ex_knlg_data_test = np.load(self.parameters.ex_test)['external_knowledge']
 
     def generate_data(self, datatype='train',
                       num_weeks_hist=0,  # number previous weeks we generate the sample from.
@@ -92,8 +92,8 @@ class DataLoader:
 
             assert num_weeks_hist >= 0 and num_days_hist >= 1
             """ set the start time interval to sample the data"""
-            s1 = num_days_hist * self.parameters.time_interval_daily + num_intervals_before_predict
-            s2 = num_weeks_hist * 7 * self.parameters.time_interval_daily + num_intervals_before_predict
+            s1 = num_days_hist * self.parameters.n_int_day + num_intervals_before_predict
+            s2 = num_weeks_hist * 7 * self.parameters.n_int_day + num_intervals_before_predict
             time_start = max(s1, s2)
             time_end = flow_data.shape[0]
 
@@ -145,7 +145,7 @@ class DataLoader:
                         """ start the samplings of previous weeks """
                         for week_cnt in range(num_weeks_hist):
                             this_week_start_time = int(t - (
-                                    num_weeks_hist - week_cnt) * 7 * self.parameters.time_interval_daily - num_intervals_before_predict)
+                                    num_weeks_hist - week_cnt) * 7 * self.parameters.n_int_day - num_intervals_before_predict)
 
                             for int_cnt in range(num_intervals_hist):
                                 t_now = this_week_start_time + int_cnt
@@ -174,7 +174,7 @@ class DataLoader:
                         for hist_day_cnt in range(num_days_hist):
                             """ define the start time in previous days """
                             hist_day_start_time = int(t - (
-                                    num_days_hist - hist_day_cnt) * self.parameters.time_interval_daily - num_intervals_before_predict)
+                                    num_days_hist - hist_day_cnt) * self.parameters.n_int_day - num_intervals_before_predict)
 
                             """ generate samples from the previous days """
                             for int_cnt in range(num_intervals_hist):

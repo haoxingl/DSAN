@@ -6,10 +6,10 @@ from tensorflow.keras import layers, Model, Sequential
 from tensorflow.keras.activations import sigmoid
 
 from tensorflow_addons.activations import gelu
+
 # from tensorflow_addons import layers as tfa_layers
 
 final_cnn_filters = 128
-
 
 # @tf.function(experimental_relax_shapes=True)
 # def gelu(x):
@@ -19,8 +19,6 @@ final_cnn_filters = 128
 
 
 """ the local convolutional layer before the encoder and deconder stacks """
-
-
 class Local_Conv(layers.Layer):
     def __init__(self, num_layers, num_filters, num_intervals, dropout_rate=0.1):
         super(Local_Conv, self).__init__()
@@ -31,7 +29,7 @@ class Local_Conv(layers.Layer):
         """ data from each time interval will be handled by one set of convolutional layers, therefore totally
             totally num_intervals sets of convolutional layers are employed """
         self.conv_layers = [[layers.Conv2D(num_filters, (3, 3), activation=gelu, padding='same')
-        # self.conv_layers = [[layers.Conv2D(num_filters, (3, 3), padding='same')
+                             # self.conv_layers = [[layers.Conv2D(num_filters, (3, 3), padding='same')
                              for _ in range(num_layers)] for _ in range(num_intervals)]
 
         self.dropout_layers = [layers.Dropout(dropout_rate) for _ in range(num_intervals)]
