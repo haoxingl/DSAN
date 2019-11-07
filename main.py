@@ -18,11 +18,13 @@ parser.add_argument('--num_heads', default=8, help='number of attention heads')
 parser.add_argument('--dropout_rate', default=0.1)
 parser.add_argument('--cnn_layers', default=3)
 parser.add_argument('--cnn_filters', default=64)
+parser.add_argument('--weight_f', default=0.7)
+parser.add_argument('--weight_t', default=0.3)
 
 """ Training settings """
 parser.add_argument('--remove_old_files', default=True)
 parser.add_argument('--MAX_EPOCH', default=500)
-parser.add_argument('--BATCH_SIZE', default=128)
+parser.add_argument('--BATCH_SIZE', default=64)
 parser.add_argument('--earlystop_patience_stream_t', default=10)
 parser.add_argument('--earlystop_patience_stsan', default=15)
 parser.add_argument('--warmup_steps', default=4000)
@@ -35,7 +37,7 @@ num_intervals_hist = 3
 num_intervals_curr = 1
 num_intervals_before_predict = 1
 num_intervals_enc = (num_weeks_hist + num_days_hist) * num_intervals_hist + num_intervals_curr
-parser.add_argument('--load_saved_data', default=False)
+parser.add_argument('--load_saved_data', default=True)
 parser.add_argument('--num_weeks_hist', default=num_weeks_hist, help='num of previous weeks to consider')
 parser.add_argument('--num_days_hist', default=num_days_hist, help='num of previous days to consider')
 parser.add_argument('--num_intervals_hist', default=num_intervals_hist, help='num of time in previous days to consider')
@@ -75,16 +77,17 @@ if __name__ == "__main__":
         print('Model index: {}'.format(model_index))
         if args.remove_old_files:
             try:
-                shutil.rmtree('./checkpoints/stream_t/{}'.format(model_index), ignore_errors=True)
                 shutil.rmtree('./checkpoints/st_san/{}'.format(model_index), ignore_errors=True)
-                os.remove('./results/stream_t/{}.txt'.format(model_index))
+            except:
+                pass
+            try:
                 os.remove('./results/st_san/{}.txt'.format(model_index))
-                shutil.rmtree('./tensorboard/stream_t/{}'.format(model_index), ignore_errors=True)
+            except:
+                pass
+            try:
                 shutil.rmtree('./tensorboard/st_san/{}'.format(model_index), ignore_errors=True)
             except:
                 pass
         model_trainer = ModelTrainer(model_index, args)
-        print("\nStrat training Stream-T...\n")
-        model_trainer.train_stream_t()
         print("\nStrat training ST-SAN...\n")
         model_trainer.train_st_san()

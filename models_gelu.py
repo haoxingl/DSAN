@@ -13,10 +13,10 @@ final_cnn_filters = 128
 
 # @tf.function(experimental_relax_shapes=True)
 # def gelu(x):
-#   cdf = 0.5 * (1.0 + tf.tanh(
-#       (np.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3)))))
-#   return x * cdf
-#
+#     cdf = 0.5 * (1.0 + tf.tanh(
+#         (np.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3)))))
+#     return x * cdf
+
 
 """ the local convolutional layer before the encoder and deconder stacks """
 
@@ -30,7 +30,8 @@ class Local_Conv(layers.Layer):
 
         """ data from each time interval will be handled by one set of convolutional layers, therefore totally
             totally num_intervals sets of convolutional layers are employed """
-        self.conv_layers = [[layers.Conv2D(num_filters, (3, 3), activation='relu', padding='same')
+        self.conv_layers = [[layers.Conv2D(num_filters, (3, 3), activation=gelu, padding='same')
+        # self.conv_layers = [[layers.Conv2D(num_filters, (3, 3), padding='same')
                              for _ in range(num_layers)] for _ in range(num_intervals)]
 
         self.dropout_layers = [layers.Dropout(dropout_rate) for _ in range(num_intervals)]
@@ -40,6 +41,7 @@ class Local_Conv(layers.Layer):
         for i in range(self.num_intervals):
             output = inputs[:, :, :, i, :]
             for j in range(self.num_layers):
+                # output = gelu(self.conv_layers[i][j](output))
                 output = self.conv_layers[i][j](output)
             output = self.dropout_layers[i](output, training=training)
             output = tf.expand_dims(output, axis=3)
@@ -60,10 +62,15 @@ class Gated_Conv_1(layers.Layer):
         self.num_intervals = num_intervals  # indicate how many time intervals are included in the historical inputs
         self.num_layers = num_layers
 
-        self.conv_layers_flow = [[layers.Conv2D(num_filters, (3, 3), activation='relu', padding='same')
+        self.conv_layers_flow = [[layers.Conv2D(num_filters, (3, 3), activation=gelu, padding='same')
                                   for _ in range(num_layers)] for _ in range(num_intervals)]
-        self.conv_layers_trans = [[layers.Conv2D(num_filters, (3, 3), activation='relu', padding='same')
+        self.conv_layers_trans = [[layers.Conv2D(num_filters, (3, 3), activation=gelu, padding='same')
                                    for _ in range(num_layers)] for _ in range(num_intervals)]
+
+        # self.conv_layers_flow = [[layers.Conv2D(num_filters, (3, 3), padding='same')
+        #                           for _ in range(num_layers)] for _ in range(num_intervals)]
+        # self.conv_layers_trans = [[layers.Conv2D(num_filters, (3, 3), padding='same')
+        #                            for _ in range(num_layers)] for _ in range(num_intervals)]
 
         self.dropout_layers = [layers.Dropout(dropout_rate) for _ in range(num_intervals)]
 
@@ -74,6 +81,8 @@ class Gated_Conv_1(layers.Layer):
             output_f = inputs_flow[:, :, :, i, :]
             output_t = inputs_trans[:, :, :, i, :]
             for j in range(self.num_layers):
+                # output_t = gelu(self.conv_layers_trans[i][j](output_t))
+                # output_f = gelu(self.conv_layers_flow[i][j](output_f)) * sigmoid(output_t)
                 output_t = self.conv_layers_trans[i][j](output_t)
                 output_f = self.conv_layers_flow[i][j](output_f) * sigmoid(output_t)
             output_f = self.dropout_layers[i](output_f, training=training)
@@ -89,10 +98,15 @@ class Gated_Conv_2(layers.Layer):
     def __init__(self, d_final, name='Gated_Conv_2', dropout_rate=0.1):
         super(Gated_Conv_2, self).__init__(name=name)
 
-        self.conv_layers_flow = [layers.Conv2D(final_cnn_filters, (3, 3), activation='relu') for i in range(2)]
-        self.conv_layers_trans = [layers.Conv2D(final_cnn_filters, (3, 3), activation='relu') for i in range(2)]
+        self.conv_layers_flow = [layers.Conv2D(final_cnn_filters, (3, 3), activation=gelu) for i in range(2)]
+        self.conv_layers_trans = [layers.Conv2D(final_cnn_filters, (3, 3), activation=gelu) for i in range(2)]
 
-        self.dense1 = layers.Dense(d_final, activation='relu')
+        self.dense1 = layers.Dense(d_final, activation=gelu)
+
+        # self.conv_layers_flow = [layers.Conv2D(final_cnn_filters, (3, 3)) for i in range(2)]
+        # self.conv_layers_trans = [layers.Conv2D(final_cnn_filters, (3, 3)) for i in range(2)]
+        #
+        # self.dense1 = layers.Dense(d_final)
         self.dense2 = layers.Dense(2, activation='tanh')
 
         self.flatten = layers.Flatten()
@@ -102,13 +116,18 @@ class Gated_Conv_2(layers.Layer):
         input_trans = tf.squeeze(input_trans, axis=-2)
         input_flow = tf.squeeze(input_flow, axis=-2) * sigmoid(input_trans)
 
+        # trans_output1 = gelu(self.conv_layers_trans[0](input_trans))
+        # flow_output1 = gelu(self.conv_layers_flow[0](input_flow)) * sigmoid(trans_output1)
         trans_output1 = self.conv_layers_trans[0](input_trans)
         flow_output1 = self.conv_layers_flow[0](input_flow) * sigmoid(trans_output1)
 
+        # trans_output2 = gelu(self.conv_layers_trans[1](trans_output1))
+        # flow_output2 = gelu(self.conv_layers_flow[1](flow_output1)) * sigmoid(trans_output2)
         trans_output2 = self.conv_layers_trans[1](trans_output1)
         flow_output2 = self.conv_layers_flow[1](flow_output1) * sigmoid(trans_output2)
 
         output = self.flatten(flow_output2)
+        # output = gelu(self.dense1(output))
         output = self.dense1(output)
         output = self.dropout(output, training=training)
         output = self.dense2(output)
@@ -183,9 +202,33 @@ class SpatialTemporal_MultiHeadAttention(layers.Layer):
 
 def point_wise_feed_forward_network(d_model, dff):
     return Sequential([
-        layers.Dense(dff, activation='relu'),
+        layers.Dense(dff, activation=gelu),
         layers.Dense(d_model)
     ])
+
+
+class FeedForwardNet(layers.Layer):
+    def __init__(self, d_model, dff):
+        super(FeedForwardNet, self).__init__()
+
+        self.dense1 = layers.Dense(dff)
+        self.dense2 = layers.Dense(d_model)
+
+    def call(self, x):
+        output = gelu(self.dense1(x))
+        return self.dense2(output)
+
+
+class PosEnc(layers.Layer):
+    def __init__(self, d_model):
+        super(PosEnc, self).__init__()
+
+        self.dense1 = layers.Dense(d_model * 2)
+        self.dense2 = layers.Dense(d_model, activation='sigmoid')
+
+    def call(self, x):
+        output = gelu(self.dense1(x))
+        return self.dense2(output)
 
 
 class EncoderLayer(layers.Layer):
@@ -194,6 +237,7 @@ class EncoderLayer(layers.Layer):
 
         self.mha = SpatialTemporal_MultiHeadAttention(d_model, num_heads)
         self.ffn = point_wise_feed_forward_network(d_model, dff)
+        # self.ffn = FeedForwardNet(d_model, dff)
 
         self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
         self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
@@ -220,6 +264,7 @@ class DecoderLayer(layers.Layer):
         self.mha1 = SpatialTemporal_MultiHeadAttention(d_model, num_heads)
         self.mha2 = SpatialTemporal_MultiHeadAttention(d_model, num_heads)
         self.ffn = point_wise_feed_forward_network(d_model, dff)
+        # self.ffn = FeedForwardNet(d_model, dff)
 
         self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
         self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
@@ -255,10 +300,12 @@ class Encoder(layers.Layer):
 
         self.ex_encoding = Sequential(
             [
-                layers.Dense(d_model * 2, activation='relu'),
+                layers.Dense(d_model * 2, activation=gelu),
                 layers.Dense(d_model, activation='sigmoid')
             ]
         )
+
+        # self.ex_encoding = PosEnc(d_model)
 
         self.local_conv = Local_Conv(cnn_layers, cnn_filters, num_intervals, dropout_rate)
 
@@ -291,10 +338,12 @@ class Decoder(layers.Layer):
 
         self.ex_encoding = Sequential(
             [
-                layers.Dense(d_model * 2, activation='relu'),
+                layers.Dense(d_model * 2, activation=gelu),
                 layers.Dense(d_model, activation='sigmoid')
             ]
         )
+
+        # self.ex_encoding = PosEnc(d_model)
 
         self.dec_layers = [DecoderLayer(d_model, num_heads, dff, dropout_rate)
                            for _ in range(num_layers)]

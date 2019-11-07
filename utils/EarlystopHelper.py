@@ -1,5 +1,5 @@
 class EarlystopHelper:
-    def __init__(self, patiences=[5, 10], thres=0.1, error_delta=0, in_weight=0.5, out_weight=0.5):
+    def __init__(self, patiences=[5, 10], thres=0.1, error_delta=0):
         assert len(patiences) == 2
         self.patiences = patiences
         self.thres = thres
@@ -10,8 +10,6 @@ class EarlystopHelper:
         self.last_rmse = None
         self.thres_cnt = 0
         self.check_flag = False
-        self.in_weight = in_weight
-        self.out_weight = out_weight
 
     def refresh_status(self, eval_rmse):
         if not self.check_flag:
