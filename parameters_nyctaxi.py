@@ -13,3 +13,5 @@ n_int_day = 48
 total_day = 60
 n_int = total_day * 24 * 60 * 60 / n_sec_int
 loss_threshold = 10
+len_x = 12
+len_y = 16

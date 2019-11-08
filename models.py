@@ -6,7 +6,6 @@ from tensorflow.keras import layers, Model, Sequential
 from tensorflow.keras.activations import sigmoid
 
 from tensorflow_addons.activations import gelu
-
 # from tensorflow_addons import layers as tfa_layers
 
 final_cnn_filters = 128
@@ -16,6 +15,38 @@ final_cnn_filters = 128
 #     cdf = 0.5 * (1.0 + tf.tanh(
 #         (np.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3)))))
 #     return x * cdf
+
+def get_angles(pos, i, d_model):
+    angle_rates = 1 / np.power(10000, (2 * (i // 2)) / np.float32(d_model))
+    return pos * angle_rates
+
+
+def spatial_posenc(position_x, position_y, d_model):
+    angle_rads_x = get_angles(position_x, np.arange(d_model)[np.newaxis, :], d_model)
+
+    angle_rads_y = get_angles(position_y, np.arange(d_model)[np.newaxis, :], d_model)
+
+    pos_encoding = np.zeros(angle_rads_x.shape, dtype=angle_rads_x.dtype)
+
+    pos_encoding[:, 0::2] = np.sin(angle_rads_x[:, 0::2])
+
+    pos_encoding[:, 1::2] = np.cos(angle_rads_y[:, 1::2])
+
+    return tf.cast(pos_encoding[np.newaxis, ...], dtype=tf.float32)
+
+
+def spatial_posenc_batch(position_x, position_y, d_model):
+    angle_rads_x = get_angles(position_x[..., np.newaxis], np.arange(d_model)[np.newaxis, :], d_model)
+
+    angle_rads_y = get_angles(position_y[..., np.newaxis], np.arange(d_model)[np.newaxis, :], d_model)
+
+    pos_encoding = np.zeros(angle_rads_x.shape, dtype=angle_rads_x.dtype)
+
+    pos_encoding[..., 0::2] = np.sin(angle_rads_x[..., 0::2])
+
+    pos_encoding[..., 1::2] = np.cos(angle_rads_y[..., 1::2])
+
+    return tf.cast(pos_encoding, dtype=tf.float32)
 
 
 """ the local convolutional layer before the encoder and deconder stacks """
