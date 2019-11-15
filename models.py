@@ -5,6 +5,8 @@ import numpy as np
 from tensorflow.keras import layers, Model, Sequential
 from tensorflow.keras.activations import sigmoid
 
+# act_func = act_func
+from tensorflow_addons.activations import gelu as act_func
 from tensorflow_addons.activations import gelu
 # from tensorflow_addons import layers as tfa_layers
 
@@ -59,10 +61,10 @@ class Local_Conv(layers.Layer):
 
         """ data from each time interval will be handled by one set of convolutional layers, therefore totally
             totally num_intervals sets of convolutional layers are employed """
-        self.conv_layers = [[layers.Conv2D(num_filters, (3, 3), activation='relu', padding='same')
+        self.conv_layers = [[layers.Conv2D(num_filters, (3, 3), activation=act_func, padding='same')
                              for _ in range(num_layers)] for _ in range(num_intervals)]
 
-        self.dropout_layers = [layers.Dropout(dropout_rate) for _ in range(num_intervals)]
+        self.dropout_layers = [[layers.Dropout(dropout_rate) for _ in range(num_layers)] for _ in range(num_intervals)]
 
     def call(self, inputs, training):
         outputs = []
@@ -70,7 +72,8 @@ class Local_Conv(layers.Layer):
             output = inputs[:, :, :, i, :]
             for j in range(self.num_layers):
                 output = self.conv_layers[i][j](output)
-            output = self.dropout_layers[i](output, training=training)
+                output = self.dropout_layers[i][j](output, training=training)
+            # output = self.dropout_layers[i](output, training=training)
             output = tf.expand_dims(output, axis=3)
             outputs.append(output)
 
@@ -83,16 +86,18 @@ class Local_Conv(layers.Layer):
 
 
 class Gated_Conv_1(layers.Layer):
-    def __init__(self, num_layers, num_filters, num_intervals, name='Gated_Conv_1', dropout_rate=0.1):
-        super(Gated_Conv_1, self).__init__(name=name)
+    def __init__(self, num_layers, num_filters, num_intervals, dropout_rate=0.1):
+        super(Gated_Conv_1, self).__init__()
 
         self.num_intervals = num_intervals  # indicate how many time intervals are included in the historical inputs
         self.num_layers = num_layers
 
-        self.conv_layers_flow = [[layers.Conv2D(num_filters, (3, 3), activation='relu', padding='same')
+        self.conv_layers_flow = [[layers.Conv2D(num_filters, (3, 3), activation=act_func, padding='same')
                                   for _ in range(num_layers)] for _ in range(num_intervals)]
-        self.conv_layers_trans = [[layers.Conv2D(num_filters, (3, 3), activation='relu', padding='same')
+        self.conv_layers_trans = [[layers.Conv2D(num_filters, (3, 3), activation=act_func, padding='same')
                                    for _ in range(num_layers)] for _ in range(num_intervals)]
+
+        self.sigm = [[layers.Activation(sigmoid) for _ in range(num_layers)] for _ in range(num_intervals)]
 
         self.dropout_layers = [layers.Dropout(dropout_rate) for _ in range(num_intervals)]
 
@@ -104,7 +109,7 @@ class Gated_Conv_1(layers.Layer):
             output_t = inputs_trans[:, :, :, i, :]
             for j in range(self.num_layers):
                 output_t = self.conv_layers_trans[i][j](output_t)
-                output_f = self.conv_layers_flow[i][j](output_f) * sigmoid(output_t)
+                output_f = self.conv_layers_flow[i][j](output_f) * self.sigm[i][j](output_t)
             output_f = self.dropout_layers[i](output_f, training=training)
             output_f = tf.expand_dims(output_f, axis=3)
             outputs_f.append(output_f)
@@ -115,13 +120,13 @@ class Gated_Conv_1(layers.Layer):
 
 
 class Gated_Conv_2(layers.Layer):
-    def __init__(self, d_final, name='Gated_Conv_2', dropout_rate=0.1):
-        super(Gated_Conv_2, self).__init__(name=name)
+    def __init__(self, d_final, dropout_rate=0.1):
+        super(Gated_Conv_2, self).__init__()
 
-        self.conv_layers_flow = [layers.Conv2D(final_cnn_filters, (3, 3), activation='relu') for i in range(2)]
-        self.conv_layers_trans = [layers.Conv2D(final_cnn_filters, (3, 3), activation='relu') for i in range(2)]
+        self.conv_layers_flow = [layers.Conv2D(final_cnn_filters, (3, 3), activation=act_func) for i in range(2)]
+        self.conv_layers_trans = [layers.Conv2D(final_cnn_filters, (3, 3), activation=act_func) for i in range(2)]
 
-        self.dense1 = layers.Dense(d_final, activation='relu')
+        self.dense1 = layers.Dense(d_final, activation=act_func)
         self.dense2 = layers.Dense(2, activation='tanh')
 
         self.flatten = layers.Flatten()
@@ -129,13 +134,13 @@ class Gated_Conv_2(layers.Layer):
 
     def call(self, input_flow, input_trans, training):
         input_trans = tf.squeeze(input_trans, axis=-2)
-        input_flow = tf.squeeze(input_flow, axis=-2) * sigmoid(input_trans)
+        input_flow = tf.squeeze(input_flow, axis=-2) * self.sigm[0](input_trans)
 
         trans_output1 = self.conv_layers_trans[0](input_trans)
-        flow_output1 = self.conv_layers_flow[0](input_flow) * sigmoid(trans_output1)
+        flow_output1 = self.conv_layers_flow[0](input_flow) * self.sigm[1](trans_output1)
 
         trans_output2 = self.conv_layers_trans[1](trans_output1)
-        flow_output2 = self.conv_layers_flow[1](flow_output1) * sigmoid(trans_output2)
+        flow_output2 = self.conv_layers_flow[1](flow_output1) * self.sigm[2](trans_output2)
 
         output = self.flatten(flow_output2)
         output = self.dense1(output)
@@ -212,7 +217,7 @@ class SpatialTemporal_MultiHeadAttention(layers.Layer):
 
 def point_wise_feed_forward_network(d_model, dff):
     return Sequential([
-        layers.Dense(dff, activation='relu'),
+        layers.Dense(dff, activation=act_func),
         layers.Dense(d_model)
     ])
 
@@ -275,16 +280,16 @@ class DecoderLayer(layers.Layer):
 
 
 class Encoder(layers.Layer):
-    def __init__(self, name, num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters, num_intervals=40,
+    def __init__(self, num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters, num_intervals=40,
                  dropout_rate=0.1):
-        super(Encoder, self).__init__(name=name)
+        super(Encoder, self).__init__()
 
         self.d_model = d_model
         self.num_layers = num_layers
 
         self.ex_encoding = Sequential(
             [
-                layers.Dense(d_model * 2, activation='relu'),
+                layers.Dense(d_model * 2, activation=act_func),
                 layers.Dense(d_model, activation='sigmoid')
             ]
         )
@@ -310,8 +315,8 @@ class Encoder(layers.Layer):
 
 
 class Decoder(layers.Layer):
-    def __init__(self, name, num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters, dropout_rate=0.1):
-        super(Decoder, self).__init__(name=name)
+    def __init__(self, num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters, dropout_rate=0.1):
+        super(Decoder, self).__init__()
 
         self.d_model = d_model
         self.num_layers = num_layers
@@ -320,7 +325,7 @@ class Decoder(layers.Layer):
 
         self.ex_encoding = Sequential(
             [
-                layers.Dense(d_model * 2, activation='relu'),
+                layers.Dense(d_model * 2, activation=act_func),
                 layers.Dense(d_model, activation='sigmoid')
             ]
         )
@@ -353,14 +358,14 @@ class ST_SAN(Model):
                  d_final=256, output_size_t=4, dropout_rate=0.1):
         super(ST_SAN, self).__init__()
 
-        self.encoder_f = Encoder('Encoder_F', num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters,
+        self.encoder_f = Encoder(num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters,
                                  num_intervals, dropout_rate)
-        self.encoder_t = Encoder('Encoder_T', num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters,
+        self.encoder_t = Encoder(num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters,
                                  num_intervals, dropout_rate)
 
-        self.decoder_f = Decoder('Decoder_F', num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters,
+        self.decoder_f = Decoder(num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters,
                                  dropout_rate)
-        self.decoder_t = Decoder('Decoder_T', num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters,
+        self.decoder_t = Decoder(num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters,
                                  dropout_rate)
 
         self.dropout_t = layers.Dropout(dropout_rate)
@@ -387,7 +392,7 @@ class ST_SAN(Model):
         dec_output_flow, attention_weights_t = self.decoder_f(flow_dec_input, ex_dec_input, enc_outputs_flow_gated,
                                                               training)
 
-        final_output_t = self.dropout_t(tf.squeeze(dec_output_t), training=training)
+        final_output_t = self.dropout_t(tf.squeeze(dec_output_t, axis=-2), training=training)
         final_output_t = self.final_layer_t(final_output_t)
         final_output = self.gated_conv_2(dec_output_flow, dec_output_t, training)
 
