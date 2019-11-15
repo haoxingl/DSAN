@@ -195,7 +195,7 @@ class DataLoader_Global:
                         hist_inputs_t.append(np.array(hist_inputs_t_sample, dtype=np.float32))
                         hist_inputs_ex.append(np.array(hist_inputs_ex_sample, dtype=np.float32))
 
-                        cors.append(self.cor_gen.get(j, i))
+                        cors.append(self.cor_gen.get(i, j))
 
                         dec_inp_f.append(f_data[t - 1 : t + n_pred - 1, i, j, :])
 

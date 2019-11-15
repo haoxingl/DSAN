@@ -2,31 +2,31 @@ import numpy as np
 
 
 class CordinateGenerator:
-    def __init__(self, len_x, len_y):
-        self.len_x = len_x
-        self.len_y = len_y
+    def __init__(self, len_r, len_c):
+        self.len_r = len_r
+        self.len_c = len_c
         self.dict = self.init_dict()
 
     def init_dict(self):
         dict = {}
-        mtx_x = np.repeat(np.arange(self.len_x)[np.newaxis, :], [self.len_y], axis=0)
-        mtx_y = np.repeat(np.arange(self.len_y)[:, np.newaxis], [self.len_x], axis=1)
-        for i in range(self.len_x):
-            for j in range(self.len_y):
-                cor = '[{}, {}]'.format(i, j)
-                mtx_x_flat = (mtx_x - i).flatten()[:, np.newaxis]
-                mtx_y_flat = (mtx_y - j).flatten()[:, np.newaxis]
-                pos_cors = np.concatenate([mtx_x_flat, mtx_y_flat], axis=-1)
+        mtx_r = np.repeat(np.arange(self.len_r)[:, np.newaxis], [self.len_c], axis=1)
+        mtx_c = np.repeat(np.arange(self.len_c)[np.newaxis, :], [self.len_r], axis=0)
+        for r in range(self.len_r):
+            for c in range(self.len_c):
+                cor = '[{}, {}]'.format(r, c)
+                mtx_r_flat = (mtx_r - r).flatten()[:, np.newaxis]
+                mtx_c_flat = (mtx_c - c).flatten()[:, np.newaxis]
+                pos_cors = np.concatenate([mtx_r_flat, mtx_c_flat], axis=-1)
                 dict[cor] = np.array(pos_cors, dtype=np.int64)
 
         return dict
 
-    def get(self, x, y):
-        assert 0 <= x < self.len_x and 0 <= y < self.len_y
-        cor = '[{}, {}]'.format(x, y)
+    def get(self, r, c):
+        assert 0 <= r < self.len_r and 0 <= c < self.len_c
+        cor = '[{}, {}]'.format(r, c)
         return self.dict[cor]
 
 
 if __name__ == "__main__":
-    g = CordinateGenerator(12, 16, 64)
+    g = CordinateGenerator(16, 12)
     mtx_dict = g.init_dict()

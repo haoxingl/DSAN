@@ -7,7 +7,6 @@ from tensorflow.keras.activations import sigmoid
 
 # act_func = act_func
 from tensorflow_addons.activations import gelu as act_func
-from tensorflow_addons.activations import gelu
 # from tensorflow_addons import layers as tfa_layers
 
 final_cnn_filters = 128
@@ -23,30 +22,30 @@ def get_angles(pos, i, d_model):
     return pos * angle_rates
 
 
-def spatial_posenc(position_x, position_y, d_model):
-    angle_rads_x = get_angles(position_x, np.arange(d_model)[np.newaxis, :], d_model)
+def spatial_posenc(position_r, position_c, d_model):
+    angle_rads_r = get_angles(position_r, np.arange(d_model)[np.newaxis, :], d_model)
 
-    angle_rads_y = get_angles(position_y, np.arange(d_model)[np.newaxis, :], d_model)
+    angle_rads_c = get_angles(position_c, np.arange(d_model)[np.newaxis, :], d_model)
 
-    pos_encoding = np.zeros(angle_rads_x.shape, dtype=angle_rads_x.dtype)
+    pos_encoding = np.zeros(angle_rads_r.shape, dtype=angle_rads_r.dtype)
 
-    pos_encoding[:, 0::2] = np.sin(angle_rads_x[:, 0::2])
+    pos_encoding[:, 0::2] = np.sin(angle_rads_r[:, 0::2])
 
-    pos_encoding[:, 1::2] = np.cos(angle_rads_y[:, 1::2])
+    pos_encoding[:, 1::2] = np.cos(angle_rads_c[:, 1::2])
 
     return tf.cast(pos_encoding[np.newaxis, ...], dtype=tf.float32)
 
 
-def spatial_posenc_batch(position_x, position_y, d_model):
-    angle_rads_x = get_angles(position_x[..., np.newaxis], np.arange(d_model)[np.newaxis, :], d_model)
+def spatial_posenc_batch(position_r, position_c, d_model):
+    angle_rads_r = get_angles(position_r[..., np.newaxis], np.arange(d_model)[np.newaxis, :], d_model)
 
-    angle_rads_y = get_angles(position_y[..., np.newaxis], np.arange(d_model)[np.newaxis, :], d_model)
+    angle_rads_c = get_angles(position_c[..., np.newaxis], np.arange(d_model)[np.newaxis, :], d_model)
 
-    pos_encoding = np.zeros(angle_rads_x.shape, dtype=angle_rads_x.dtype)
+    pos_encoding = np.zeros(angle_rads_r.shape, dtype=angle_rads_r.dtype)
 
-    pos_encoding[..., 0::2] = np.sin(angle_rads_x[..., 0::2])
+    pos_encoding[..., 0::2] = np.sin(angle_rads_r[..., 0::2])
 
-    pos_encoding[..., 1::2] = np.cos(angle_rads_y[..., 1::2])
+    pos_encoding[..., 1::2] = np.cos(angle_rads_c[..., 1::2])
 
     return tf.cast(pos_encoding, dtype=tf.float32)
 
