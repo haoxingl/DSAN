@@ -13,5 +13,20 @@ n_int_day = 48
 n_day = 60
 n_int = n_day * 24 * 60 * 60 / n_sec_int
 loss_threshold = 10
-len_x = 8
-len_y = 14
+len_r = 14
+len_c = 8
+
+if __name__ == "__main__":
+    import numpy as np
+    f_data_train = np.load(f_train)['flow']
+    f_data_test = np.load(f_test)['flow']
+    t_data_train = np.load(t_train)['trans']
+    t_data_test = np.load(t_test)['trans']
+    ex_data_train = np.load(ex_train)['external_knowledge']
+    ex_data_test = np.load(ex_test)['external_knowledge']
+    np.savez_compressed(f_train, data=f_data_train)
+    np.savez_compressed(f_test, data=f_data_test)
+    np.savez_compressed(t_train, data=t_data_train)
+    np.savez_compressed(t_test, data=t_data_test)
+    np.savez_compressed(ex_train, data=ex_data_train)
+    np.savez_compressed(ex_test, data=ex_data_test)

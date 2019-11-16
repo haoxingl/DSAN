@@ -1,40 +1,35 @@
 import numpy as np
 import parameters_nyctaxi as param_taxi
 import parameters_nycbike as param_bike
-from CordinateGenerator import CordinateGenerator
+from utils.CordinateGenerator import CordinateGenerator
 
 
 class DataLoader_Global:
     def __init__(self, dataset='taxi'):
+        assert dataset == 'taxi' or 'bike'
         self.dataset = dataset
-        if self.dataset == 'taxi':
-            self.parameters = param_taxi
-        elif self.dataset == 'bike':
-            self.parameters = param_bike
-        else:
-            print('Dataset should be \'taxi\' or \'bike\'')
-            raise Exception
-        self.cor_gen = CordinateGenerator(self.parameters.len_x, self.parameters.len_y)
+        self.pmt = param_taxi if dataset == 'taxi' else param_bike
+        self.cor_gen = CordinateGenerator(self.pmt.len_r, self.pmt.len_c)
 
-    def load_flow(self, datatype='train'):
+    def load_data_f(self, datatype='train'):
         if datatype == 'train':
-            self.f_train = np.array(np.load(self.parameters.f_train)['flow'], dtype=np.float32) / self.parameters.f_train_max
+            self.f_train = np.array(np.load(self.pmt.f_train)['data'], dtype=np.float32) / self.pmt.f_train_max
         else:
-            self.f_test = np.array(np.load(self.parameters.f_test)['flow'], dtype=np.float32) / self.parameters.f_train_max
+            self.f_test = np.array(np.load(self.pmt.f_test)['data'], dtype=np.float32) / self.pmt.f_train_max
 
-    def load_trans(self, datatype='train'):
+    def load_data_t(self, datatype='train'):
         if datatype == 'train':
-            self.t_train = np.array(np.load(self.parameters.t_train)['trans'], dtype=np.float32) / self.parameters.t_train_max
+            self.t_train = np.array(np.load(self.pmt.t_train)['data'], dtype=np.float32) / self.pmt.t_train_max
         else:
-            self.t_test = np.array(np.load(self.parameters.t_test)['trans'], dtype=np.float32) / self.parameters.t_train_max
+            self.t_test = np.array(np.load(self.pmt.t_test)['data'], dtype=np.float32) / self.pmt.t_train_max
 
     """ external_knowledge contains the time and weather information of each time interval """
 
-    def load_external_knowledge(self, datatype='train'):
+    def load_data_ex(self, datatype='train'):
         if datatype == 'train':
-            self.ex_train = np.load(self.parameters.ex_train)['external_knowledge']
+            self.ex_train = np.load(self.pmt.ex_train)['data']
         else:
-            self.ex_test = np.load(self.parameters.ex_test)['external_knowledge']
+            self.ex_test = np.load(self.pmt.ex_test)['data']
 
     def generate_data(self, datatype='train',
                       n_hist_week=0,  # number previous weeks we generate the sample from.
@@ -66,9 +61,9 @@ class DataLoader_Global:
         else:
             print("Loading {} data...".format(datatype))
             """ loading data """
-            self.load_flow(datatype)
-            self.load_trans(datatype)
-            self.load_external_knowledge(datatype)
+            self.load_data_f(datatype)
+            self.load_data_t(datatype)
+            self.load_data_ex(datatype)
 
             if datatype == "train":
                 f_data = self.f_train
@@ -103,8 +98,8 @@ class DataLoader_Global:
 
             assert n_hist_week >= 0 and n_hist_day >= 1
             """ set the start time interval to sample the data"""
-            s1 = n_hist_day * self.parameters.n_int_day + n_int_before
-            s2 = n_hist_week * 7 * self.parameters.n_int_day + n_int_before
+            s1 = n_hist_day * self.pmt.n_int_day + n_int_before
+            s2 = n_hist_week * 7 * self.pmt.n_int_day + n_int_before
             time_start = max(s1, s2)
             time_end = f_data.shape[0] - n_pred
 
@@ -128,63 +123,61 @@ class DataLoader_Global:
 
                         """ start the samplings of previous weeks """
                         for week_cnt in range(n_hist_week):
-                            this_week_start_time = int(t - (
-                                    n_hist_week - week_cnt) * 7 * self.parameters.n_int_day - n_int_before)
+                            s_time_w = int(t - (n_hist_week - week_cnt) * 7 * self.pmt.n_int_day - n_int_before)
 
                             for int_cnt in range(n_hist_int):
-                                t_now = this_week_start_time + int_cnt
+                                t_now = s_time_w + int_cnt
 
-                                local_flow = f_data[t_now, :, :, :]
+                                global_f = f_data[t_now, ...]
 
-                                local_trans = np.zeros((data_shape[1], data_shape[2], 4), dtype=np.float32)
+                                global_t = np.zeros((data_shape[1], data_shape[2], 4), dtype=np.float32)
 
-                                local_trans[..., 0] = t_data[0, t_now, ..., i, j]
-                                local_trans[..., 1] = t_data[1, t_now, ..., i, j]
-                                local_trans[..., 2] = t_data[0, t_now, i, j, ...]
-                                local_trans[..., 3] = t_data[1, t_now, i, j, ...]
+                                global_t[..., 0] = t_data[0, t_now, ..., i, j]
+                                global_t[..., 1] = t_data[1, t_now, ..., i, j]
+                                global_t[..., 2] = t_data[0, t_now, i, j, ...]
+                                global_t[..., 3] = t_data[1, t_now, i, j, ...]
 
-                                hist_inputs_f_sample.append(local_flow)
-                                hist_inputs_t_sample.append(local_trans)
+                                hist_inputs_f_sample.append(global_f)
+                                hist_inputs_t_sample.append(global_t)
                                 hist_inputs_ex_sample.append(ex_data[t_now, :])
 
                         """ start the samplings of previous days"""
                         for hist_day_cnt in range(n_hist_day):
                             """ define the start time in previous days """
-                            hist_day_start_time = int(t - (
-                                    n_hist_day - hist_day_cnt) * self.parameters.n_int_day - n_int_before)
+                            s_time_d = int(t - (n_hist_day - hist_day_cnt) * self.pmt.n_int_day - n_int_before)
 
                             """ generate samples from the previous days """
                             for int_cnt in range(n_hist_int):
-                                t_now = hist_day_start_time + int_cnt
+                                t_now = s_time_d + int_cnt
 
-                                local_flow = f_data[t_now, ...]
+                                global_f = f_data[t_now, ...]
 
-                                local_trans = np.zeros((data_shape[1], data_shape[2], 4), dtype=np.float32)
+                                global_t = np.zeros((data_shape[1], data_shape[2], 4), dtype=np.float32)
 
-                                local_trans[..., 0] = t_data[0, t_now, ..., i, j]
-                                local_trans[..., 1] = t_data[1, t_now, ..., i, j]
-                                local_trans[..., 2] = t_data[0, t_now, i, j, ...]
-                                local_trans[..., 3] = t_data[1, t_now, i, j, ...]
+                                global_t[..., 0] = t_data[0, t_now, ..., i, j]
+                                global_t[..., 1] = t_data[1, t_now, ..., i, j]
+                                global_t[..., 2] = t_data[0, t_now, i, j, ...]
+                                global_t[..., 3] = t_data[1, t_now, i, j, ...]
 
-                                hist_inputs_f_sample.append(local_flow)
-                                hist_inputs_t_sample.append(local_trans)
+                                hist_inputs_f_sample.append(global_f)
+                                hist_inputs_t_sample.append(global_t)
                                 hist_inputs_ex_sample.append(ex_data[t_now, :])
 
                         """ sampling of inputs of current day, the details are similar to those mentioned above """
                         for int_cnt in range(n_curr_int):
                             t_now = int(t - (n_curr_int - int_cnt))
 
-                            local_flow = f_data[t_now, ..., :]
+                            global_f = f_data[t_now, ..., :]
 
-                            local_trans = np.zeros((data_shape[1], data_shape[2], 4), dtype=np.float32)
+                            global_t = np.zeros((data_shape[1], data_shape[2], 4), dtype=np.float32)
 
-                            local_trans[..., 0] = t_data[0, t_now, ..., i, j]
-                            local_trans[..., 1] = t_data[1, t_now, ..., i, j]
-                            local_trans[..., 2] = t_data[0, t_now, i, j, ...]
-                            local_trans[..., 3] = t_data[1, t_now, i, j, ...]
+                            global_t[..., 0] = t_data[0, t_now, ..., i, j]
+                            global_t[..., 1] = t_data[1, t_now, ..., i, j]
+                            global_t[..., 2] = t_data[0, t_now, i, j, ...]
+                            global_t[..., 3] = t_data[1, t_now, i, j, ...]
 
-                            curr_inputs_f_sample.append(local_flow)
-                            curr_inputs_t_sample.append(local_trans)
+                            curr_inputs_f_sample.append(global_f)
+                            curr_inputs_t_sample.append(global_t)
                             curr_inputs_ex_sample.append(ex_data[t_now, :])
 
                         """ append the samples of each node to the overall inputs arrays """
@@ -197,26 +190,26 @@ class DataLoader_Global:
 
                         cors.append(self.cor_gen.get(i, j))
 
-                        dec_inp_f.append(f_data[t - 1 : t + n_pred - 1, i, j, :])
+                        dec_inp_f.append(f_data[t - 1: t + n_pred - 1, i, j, :])
 
                         """ generating the ground truth for each sample """
-                        y.append(f_data[t : t + n_pred, i, j, :])
+                        y.append(f_data[t: t + n_pred, i, j, :])
 
                         dec_inp_t_sample = np.zeros((n_pred, data_shape[1], data_shape[2], 4), dtype=np.float32)
 
-                        dec_inp_t_sample[..., 0] = t_data[0, t - 1 : t + n_pred - 1, ..., i, j]
-                        dec_inp_t_sample[..., 1] = t_data[1, t - 1 : t + n_pred - 1, ..., i, j]
-                        dec_inp_t_sample[..., 2] = t_data[0, t - 1 : t + n_pred - 1, i, j, ...]
-                        dec_inp_t_sample[..., 3] = t_data[1, t - 1 : t + n_pred - 1, i, j, ...]
+                        dec_inp_t_sample[..., 0] = t_data[0, t - 1: t + n_pred - 1, ..., i, j]
+                        dec_inp_t_sample[..., 1] = t_data[1, t - 1: t + n_pred - 1, ..., i, j]
+                        dec_inp_t_sample[..., 2] = t_data[0, t - 1: t + n_pred - 1, i, j, ...]
+                        dec_inp_t_sample[..., 3] = t_data[1, t - 1: t + n_pred - 1, i, j, ...]
 
                         dec_inp_t.append(dec_inp_t_sample)
 
                         tar_t = np.zeros((n_pred, data_shape[1], data_shape[2], 4), dtype=np.float32)
 
-                        tar_t[..., 0] = t_data[0, t : t + n_pred, ..., i, j]
-                        tar_t[..., 1] = t_data[1, t : t + n_pred, ..., i, j]
-                        tar_t[..., 2] = t_data[0, t : t + n_pred, i, j, ...]
-                        tar_t[..., 3] = t_data[1, t : t + n_pred, i, j, ...]
+                        tar_t[..., 0] = t_data[0, t: t + n_pred, ..., i, j]
+                        tar_t[..., 1] = t_data[1, t: t + n_pred, ..., i, j]
+                        tar_t[..., 2] = t_data[0, t: t + n_pred, i, j, ...]
+                        tar_t[..., 3] = t_data[1, t: t + n_pred, i, j, ...]
 
                         y_t.append(tar_t)
 
@@ -249,7 +242,8 @@ class DataLoader_Global:
 
             return hist_inputs_f, hist_inputs_t, hist_inputs_ex, curr_inputs_f, curr_inputs_t, curr_inputs_ex, cors, dec_inp_f, dec_inp_t, y_t, y
 
+
 if __name__ == "__main__":
     dl = DataLoader_Global()
     hist_inputs_f, hist_inputs_t, hist_inputs_ex, curr_inputs_f, curr_inputs_t, curr_inputs_ex, cors, dec_inp_f, dec_inp_t, y_t, y = \
-        dl.generate_data(load_saved_data=True)
+        dl.generate_data(load_saved_data=False)

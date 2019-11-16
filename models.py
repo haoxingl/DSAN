@@ -5,17 +5,11 @@ import numpy as np
 from tensorflow.keras import layers, Model, Sequential
 from tensorflow.keras.activations import sigmoid
 
-# act_func = act_func
-from tensorflow_addons.activations import gelu as act_func
+act_func = 'relu'
+# from tensorflow_addons.activations import gelu as act_func
 # from tensorflow_addons import layers as tfa_layers
 
 final_cnn_filters = 128
-
-# @tf.function(experimental_relax_shapes=True)
-# def gelu(x):
-#     cdf = 0.5 * (1.0 + tf.tanh(
-#         (np.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3)))))
-#     return x * cdf
 
 def get_angles(pos, i, d_model):
     angle_rates = 1 / np.power(10000, (2 * (i // 2)) / np.float32(d_model))
@@ -82,6 +76,40 @@ class Local_Conv(layers.Layer):
 
 
 """ the implementation of the Gated Fusion mechanism, check the details in my paper """
+
+
+class Gated_Conv(layers.Layer):
+    def __init__(self, num_layers, num_filters, num_itrv, dropout_rate=0.1):
+        super(Gated_Conv, self).__init__()
+
+        self.num_itrv = num_itrv  # indicate how many time intervals are included in the historical inputs
+        self.num_layers = num_layers
+
+        self.conv_layers_f = [[layers.Conv2D(num_filters, (3, 3), activation=act_func, padding='same')
+                                  for _ in range(num_layers)] for _ in range(num_itrv)]
+        self.conv_layers_t = [[layers.Conv2D(num_filters, (3, 3), activation=act_func, padding='same')
+                                   for _ in range(num_layers)] for _ in range(num_itrv)]
+
+        self.sigm = [[layers.Activation(sigmoid) for _ in range(num_layers)] for _ in range(num_itrv)]
+
+        self.do_layers = [layers.Dropout(dropout_rate * num_layers) for _ in range(num_itrv)]
+
+    def call(self, inputs_flow, inputs_trans, training):
+        outputs_f = []
+
+        for i in range(self.num_itrv):
+            output_f = inputs_flow[:, :, :, i, :]
+            output_t = inputs_trans[:, :, :, i, :]
+            for j in range(self.num_layers):
+                output_t = self.conv_layers_t[i][j](output_t)
+                output_f = self.conv_layers_f[i][j](output_f) * self.sigm[i][j](output_t)
+            output_f = self.do_layers[i](output_f, training=training)
+            output_f = tf.expand_dims(output_f, axis=3)
+            outputs_f.append(output_f)
+
+        output_final = tf.concat(outputs_f, axis=3)
+
+        return output_final
 
 
 class Gated_Conv_1(layers.Layer):

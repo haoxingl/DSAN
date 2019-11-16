@@ -29,8 +29,7 @@ parser.add_argument('--weight_out', default=0.6)
 parser.add_argument('--remove_old_files', default=True)
 parser.add_argument('--MAX_EPOCH', default=500)
 parser.add_argument('--BATCH_SIZE', default=64)
-# parser.add_argument('--earlystop_patience_stream_t', default=10)
-parser.add_argument('--es_patience', default=15)
+parser.add_argument('--es_patience', default=10)
 parser.add_argument('--es_threshold', default=0.015)
 parser.add_argument('--warmup_steps', default=4000)
 parser.add_argument('--verbose_train', default=1)
@@ -49,21 +48,30 @@ parser.add_argument('--n_hist_int', default=n_hist_int, help='num of time in pre
 parser.add_argument('--n_curr_int', default=n_curr_int, help='num of time in today to consider')
 parser.add_argument('--n_int_before', default=1, help='num of time before predicted time to consider')
 parser.add_argument('--n_int_enc', default=n_int_enc, help='total length of historical data')
+parser.add_argument('--n_pred', default=5, help='future time to predict')
 
 args = parser.parse_args()
 
 print("num_layers: {}, d_model: {}, dff: {}, num_heads: {}, cnn_layers: {}, cnn_filters: {}" \
-      .format(args.num_layers, args.d_model, args.dff, args.num_heads, args.cnn_layers, args.cnn_filters))
+      .format(args.num_layers,
+              args.d_model,
+              args.dff,
+              args.num_heads,
+              args.cnn_layers,
+              args.cnn_filters
+              ))
 print(
     "BATCH_SIZE: {}, es_patience: {}".format(
         args.BATCH_SIZE, args.es_patience))
 print(
-    "n_hist_week: {}, n_hist_day: {}, n_hist_int: {}, n_curr_int: {}, n_int_before: {}" \
+    "n_hist_week: {}, n_hist_day: {}, n_hist_int: {}, n_curr_int: {}, n_int_before: {}, n_pred: {}" \
         .format(args.n_hist_week,
                 args.n_hist_day,
                 args.n_hist_int,
                 args.n_curr_int,
-                args.n_int_before))
+                args.n_int_before,
+                args.n_pred
+                ))
 
 # os.environ['F_ENABLE_AUTO_MIXED_PRECISION'] = '1'
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -80,17 +88,17 @@ if __name__ == "__main__":
         print('Model index: {}'.format(model_index))
         if args.remove_old_files:
             try:
-                shutil.rmtree('./checkpoints/st_san/{}'.format(model_index), ignore_errors=True)
+                shutil.rmtree('./checkpoints/stsan_xl/{}'.format(model_index), ignore_errors=True)
             except:
                 pass
             try:
-                os.remove('./results/st_san/{}.txt'.format(model_index))
+                os.remove('./results/stsan_xl/{}.txt'.format(model_index))
             except:
                 pass
             try:
-                shutil.rmtree('./tensorboard/st_san/{}'.format(model_index), ignore_errors=True)
+                shutil.rmtree('./tensorboard/stsan_xl/{}'.format(model_index), ignore_errors=True)
             except:
                 pass
         model_trainer = ModelTrainer(model_index, args)
-        print("\nStrat training ST-SAN...\n")
+        print("\nStrat training STSAN-XL...\n")
         model_trainer.train_st_san()

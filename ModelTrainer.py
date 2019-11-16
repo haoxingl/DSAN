@@ -18,11 +18,10 @@ import parameters_nyctaxi
 import parameters_nycbike
 
 # from models import ST_SAN
-from models_gelu import ST_SAN
 from utils.CustomSchedule import CustomSchedule
 from utils.EarlystopHelper import EarlystopHelper
 from utils.ReshuffleHelper import ReshuffleHelper
-from utils.utils_global import DatasetGenerator, write_result
+from utils.tools import DatasetGenerator, write_result
 from utils.Metrics import MAE
 
 """ use mirrored strategy for distributed training """
