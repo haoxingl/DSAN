@@ -45,19 +45,16 @@ class DataLoader_Global:
         """ loading saved data """
         if load_saved_data:
             print('Loading {} data from .npzs...'.format(datatype))
-            curr_inputs_f = np.load("data/curr_inputs_f_{}_{}.npz".format(self.dataset, datatype))['data']
-            curr_inputs_t = np.load("data/curr_inputs_t_{}_{}.npz".format(self.dataset, datatype))['data']
-            curr_inputs_ex = np.load("data/curr_inputs_ex_{}_{}.npz".format(self.dataset, datatype))['data']
-            hist_inputs_f = np.load("data/hist_inputs_f_{}_{}.npz".format(self.dataset, datatype))['data']
-            hist_inputs_t = np.load("data/hist_inputs_t_{}_{}.npz".format(self.dataset, datatype))['data']
-            hist_inputs_ex = np.load("data/hist_inputs_ex_{}_{}.npz".format(self.dataset, datatype))['data']
-            cors = np.load("data/cors_{}_{}.npz".format(self.dataset, datatype))['data']
+            inp_ft = np.load("data/inp_ft_{}_{}.npz".format(self.dataset, datatype))['data']
+            inp_ex = np.load("data/inp_ex_{}_{}.npz".format(self.dataset, datatype))['data']
             dec_inp_f = np.load("data/dec_inp_f_{}_{}.npz".format(self.dataset, datatype))['data']
             dec_inp_t = np.load("data/dec_inp_t_{}_{}.npz".format(self.dataset, datatype))['data']
+            dec_inp_ex = np.load("data/dec_inp_ex_{}_{}.npz".format(self.dataset, datatype))['data']
+            cors = np.load("data/cors_{}_{}.npz".format(self.dataset, datatype))['data']
             y = np.load("data/y_{}_{}.npz".format(self.dataset, datatype))['data']
             y_t = np.load("data/y_t_{}_{}.npz".format(self.dataset, datatype))['data']
 
-            return hist_inputs_f, hist_inputs_t, hist_inputs_ex, curr_inputs_f, curr_inputs_t, curr_inputs_ex, cors, dec_inp_f, dec_inp_t, y_t, y
+            return inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y
         else:
             print("Loading {} data...".format(datatype))
             """ loading data """
@@ -77,24 +74,21 @@ class DataLoader_Global:
                 print("Please select **train** or **test**")
                 raise Exception
 
-            n_curr_int += 1  # we add one more interval to be taken as the current input
+            # n_curr_int += 1  # we add one more interval to be taken as the current input
 
             """ initialize the array to hold the final inputs """
-            y = []  # ground truth of the inflow and outflow of each node at each time interval
-            y_t = []  # ground truth of the transitions between each node and its neighbors in the area of interest
+
+            inp_ft = []
+            inp_ex = []
 
             dec_inp_f = []
             dec_inp_t = []
-
-            hist_inputs_f = []  # historical flow inputs from area of interest
-            hist_inputs_t = []  # historical transition inputs from area of interest
-            hist_inputs_ex = []  # historical external knowledge inputs
-
-            curr_inputs_f = []  # flow inputs of current day
-            curr_inputs_t = []  # transition inputs of current day
-            curr_inputs_ex = []  # external knowledge inputs of current day
+            dec_inp_ex = []
 
             cors = []
+
+            y = []  # ground truth of the inflow and outflow of each node at each time interval
+            y_t = []  # ground truth of the transitions between each node and its neighbors in the area of interest
 
             assert n_hist_week >= 0 and n_hist_day >= 1
             """ set the start time interval to sample the data"""
@@ -113,13 +107,9 @@ class DataLoader_Global:
                     for j in range(f_data.shape[2]):
 
                         """ initialize the array to hold the samples of each node at each time interval """
-                        hist_inputs_f_sample = []
-                        hist_inputs_t_sample = []
-                        hist_inputs_ex_sample = []
 
-                        curr_inputs_f_sample = []
-                        curr_inputs_t_sample = []
-                        curr_inputs_ex_sample = []
+                        inp_ft_sample = []
+                        inp_ex_sample = []
 
                         """ start the samplings of previous weeks """
                         for week_cnt in range(n_hist_week):
@@ -137,9 +127,8 @@ class DataLoader_Global:
                                 global_t[..., 2] = t_data[0, t_now, i, j, ...]
                                 global_t[..., 3] = t_data[1, t_now, i, j, ...]
 
-                                hist_inputs_f_sample.append(global_f)
-                                hist_inputs_t_sample.append(global_t)
-                                hist_inputs_ex_sample.append(ex_data[t_now, :])
+                                inp_ft_sample.append(np.concatenate([global_f, global_t], axis=-1))
+                                inp_ex_sample.append(ex_data[t_now, :])
 
                         """ start the samplings of previous days"""
                         for hist_day_cnt in range(n_hist_day):
@@ -159,9 +148,8 @@ class DataLoader_Global:
                                 global_t[..., 2] = t_data[0, t_now, i, j, ...]
                                 global_t[..., 3] = t_data[1, t_now, i, j, ...]
 
-                                hist_inputs_f_sample.append(global_f)
-                                hist_inputs_t_sample.append(global_t)
-                                hist_inputs_ex_sample.append(ex_data[t_now, :])
+                                inp_ft_sample.append(np.concatenate([global_f, global_t], axis=-1))
+                                inp_ex_sample.append(ex_data[t_now, :])
 
                         """ sampling of inputs of current day, the details are similar to those mentioned above """
                         for int_cnt in range(n_curr_int):
@@ -176,24 +164,12 @@ class DataLoader_Global:
                             global_t[..., 2] = t_data[0, t_now, i, j, ...]
                             global_t[..., 3] = t_data[1, t_now, i, j, ...]
 
-                            curr_inputs_f_sample.append(global_f)
-                            curr_inputs_t_sample.append(global_t)
-                            curr_inputs_ex_sample.append(ex_data[t_now, :])
+                            inp_ft_sample.append(np.concatenate([global_f, global_t], axis=-1))
+                            inp_ex_sample.append(ex_data[t_now, :])
 
                         """ append the samples of each node to the overall inputs arrays """
-                        curr_inputs_f.append(np.array(curr_inputs_f_sample, dtype=np.float32))
-                        curr_inputs_t.append(np.array(curr_inputs_t_sample, dtype=np.float32))
-                        curr_inputs_ex.append(np.array(curr_inputs_ex_sample, dtype=np.float32))
-                        hist_inputs_f.append(np.array(hist_inputs_f_sample, dtype=np.float32))
-                        hist_inputs_t.append(np.array(hist_inputs_t_sample, dtype=np.float32))
-                        hist_inputs_ex.append(np.array(hist_inputs_ex_sample, dtype=np.float32))
-
-                        cors.append(self.cor_gen.get(i, j))
-
-                        dec_inp_f.append(f_data[t - 1: t + n_pred - 1, i, j, :])
-
-                        """ generating the ground truth for each sample """
-                        y.append(f_data[t: t + n_pred, i, j, :])
+                        inp_ft.append(inp_ft_sample)
+                        inp_ex.append(inp_ex_sample)
 
                         dec_inp_t_sample = np.zeros((n_pred, data_shape[1], data_shape[2], 4), dtype=np.float32)
 
@@ -202,7 +178,15 @@ class DataLoader_Global:
                         dec_inp_t_sample[..., 2] = t_data[0, t - 1: t + n_pred - 1, i, j, ...]
                         dec_inp_t_sample[..., 3] = t_data[1, t - 1: t + n_pred - 1, i, j, ...]
 
+                        dec_inp_f.append(np.concatenate([f_data[t - 1: t + n_pred - 1, i, j, :], dec_inp_t_sample[:, i, j, :]], axis=-1))
                         dec_inp_t.append(dec_inp_t_sample)
+
+                        dec_inp_ex.append(ex_data[t - 1: t + n_pred - 1, :])
+
+                        cors.append(self.cor_gen.get(i, j))
+
+                        """ generating the ground truth for each sample """
+                        y.append(f_data[t: t + n_pred, i, j, :])
 
                         tar_t = np.zeros((n_pred, data_shape[1], data_shape[2], 4), dtype=np.float32)
 
@@ -214,36 +198,31 @@ class DataLoader_Global:
                         y_t.append(tar_t)
 
             """ convert the inputs arrays to matrices """
-            curr_inputs_f = np.array(curr_inputs_f, dtype=np.float32).transpose((0, 2, 3, 1, 4))
-            curr_inputs_t = np.array(curr_inputs_t, dtype=np.float32).transpose((0, 2, 3, 1, 4))
-            curr_inputs_ex = np.array(curr_inputs_ex, dtype=np.float32)
-            hist_inputs_f = np.array(hist_inputs_f, dtype=np.float32).transpose((0, 2, 3, 1, 4))
-            hist_inputs_t = np.array(hist_inputs_t, dtype=np.float32).transpose((0, 2, 3, 1, 4))
-            hist_inputs_ex = np.array(hist_inputs_ex, dtype=np.float32)
+            inp_ft = np.array(inp_ft, dtype=np.float32)
+            inp_ex = np.array(inp_ex, dtype=np.float32)
 
-            cors = np.array(cors, dtype=np.int64)
             dec_inp_f = np.array(dec_inp_f, dtype=np.float32)
             dec_inp_t = np.array(dec_inp_t, dtype=np.float32)
+            dec_inp_ex = np.array(dec_inp_ex, dtype=np.float32)
+
+            cors = np.array(cors, dtype=np.int64)
+
             y = np.array(y, dtype=np.float32)
             y_t = np.array(y_t, dtype=np.float32)
 
             """ save the matrices """
-            np.savez_compressed("data/curr_inputs_f_{}_{}.npz".format(self.dataset, datatype), data=curr_inputs_f)
-            np.savez_compressed("data/curr_inputs_t_{}_{}.npz".format(self.dataset, datatype), data=curr_inputs_t)
-            np.savez_compressed("data/curr_inputs_ex_{}_{}.npz".format(self.dataset, datatype), data=curr_inputs_ex)
-            np.savez_compressed("data/hist_inputs_f_{}_{}.npz".format(self.dataset, datatype), data=hist_inputs_f)
-            np.savez_compressed("data/hist_inputs_t_{}_{}.npz".format(self.dataset, datatype), data=hist_inputs_t)
-            np.savez_compressed("data/hist_inputs_ex_{}_{}.npz".format(self.dataset, datatype), data=hist_inputs_ex)
-            np.savez_compressed("data/cors_{}_{}.npz".format(self.dataset, datatype), data=cors)
+            np.savez_compressed("data/inp_ft_{}_{}.npz".format(self.dataset, datatype), data=inp_ft)
+            np.savez_compressed("data/inp_ex_{}_{}.npz".format(self.dataset, datatype), data=inp_ex)
             np.savez_compressed("data/dec_inp_f_{}_{}.npz".format(self.dataset, datatype), data=dec_inp_f)
             np.savez_compressed("data/dec_inp_t_{}_{}.npz".format(self.dataset, datatype), data=dec_inp_t)
+            np.savez_compressed("data/dec_inp_ex_{}_{}.npz".format(self.dataset, datatype), data=dec_inp_ex)
+            np.savez_compressed("data/cors_{}_{}.npz".format(self.dataset, datatype), data=cors)
             np.savez_compressed("data/y_{}_{}.npz".format(self.dataset, datatype), data=y)
             np.savez_compressed("data/y_t_{}_{}.npz".format(self.dataset, datatype), data=y_t)
 
-            return hist_inputs_f, hist_inputs_t, hist_inputs_ex, curr_inputs_f, curr_inputs_t, curr_inputs_ex, cors, dec_inp_f, dec_inp_t, y_t, y
+            return inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y
 
 
 if __name__ == "__main__":
     dl = DataLoader_Global()
-    hist_inputs_f, hist_inputs_t, hist_inputs_ex, curr_inputs_f, curr_inputs_t, curr_inputs_ex, cors, dec_inp_f, dec_inp_t, y_t, y = \
-        dl.generate_data(load_saved_data=False)
+    inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y = dl.generate_data(datatype='test', load_saved_data=False)

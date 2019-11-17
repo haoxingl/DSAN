@@ -19,43 +19,47 @@ class DatasetGenerator:
         self.test_data_loaded = False
         self.data_loader = dl(self.dataset)
 
-    def load_dataset(self, datatype='train', load_saved_data=False, strategy=None):
+    def load_data(self, datatype, load_saved_data):
+        inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y = self.data_loader.generate_data(
+            datatype,
+            self.n_hist_week,
+            self.n_hist_day,
+            self.n_hist_int,
+            self.n_curr_int,
+            self.n_int_before,
+            self.n_pred,
+            load_saved_data
+        )
+
+        dataset = tf.data.Dataset.from_tensor_slices(
+            (
+                {
+                    "inp_ft": inp_ft,
+                    "inp_ex": inp_ex,
+                    "dec_inp_f": dec_inp_f,
+                    "dec_inp_t": dec_inp_t,
+                    "dec_inp_ex": dec_inp_ex,
+                    "cors": cors
+                },
+                {
+                    "y_t": y_t,
+                    "y": y
+                }
+            )
+        )
+
+        return dataset, inp_ft.shape
+
+    def build_dataset(self, datatype='train', load_saved_data=False, strategy=None):
         assert datatype == 'train' or datatype == 'test'
         if datatype == 'train':
             if not self.train_data_loaded:
                 self.train_data_loaded = True
-                hist_inputs_f, hist_inputs_t, hist_inputs_ex, curr_inputs_f, curr_inputs_t, curr_inputs_ex, cors, dec_inp_f, dec_inp_t, y_t, y = \
-                    self.data_loader.generate_data(datatype,
-                                                   self.n_hist_week,
-                                                   self.n_hist_day,
-                                                   self.n_hist_int,
-                                                   self.n_curr_int,
-                                                   self.n_int_before,
-                                                   self.n_pred,
-                                                   load_saved_data)
 
-                self.train_dataset = tf.data.Dataset.from_tensor_slices(
-                    (
-                        {
-                            "hist_f": hist_inputs_f,
-                            "hist_t": hist_inputs_t,
-                            "hist_ex": hist_inputs_ex,
-                            "curr_f": curr_inputs_f,
-                            "curr_t": curr_inputs_t,
-                            "curr_ex": curr_inputs_ex,
-                            "cors": cors,
-                            "dec_inp_f": dec_inp_f,
-                            "dec_inp_t": dec_inp_t
-                        },
-                        {
-                            "y_t": y_t,
-                            "y": y
-                        }
-                    )
-                )
+                self.train_dataset, data_shape = self.load_data(datatype, load_saved_data)
 
-                self.data_size = int(hist_inputs_f.shape[0])
-                self.train_size = int(hist_inputs_f.shape[0] * 0.8)
+                self.data_size = int(data_shape[0])
+                self.train_size = int(data_shape[0] * 0.8)
 
             dataset_cached = self.train_dataset.cache()
             dataset_shuffled = dataset_cached.shuffle(self.data_size, reshuffle_each_iteration=False)
@@ -73,40 +77,13 @@ class DatasetGenerator:
         else:
             if not self.test_data_loaded:
                 self.test_data_loaded = True
-                hist_inputs_f, hist_inputs_t, hist_inputs_ex, curr_inputs_f, curr_inputs_t, curr_inputs_ex, cors, dec_inp_f, dec_inp_t, y_t, y = \
-                    self.data_loader.generate_data(datatype,
-                                                   self.n_hist_week,
-                                                   self.n_hist_day,
-                                                   self.n_hist_int,
-                                                   self.n_curr_int,
-                                                   self.n_int_before,
-                                                   self.n_pred,
-                                                   load_saved_data)
 
-                self.test_set = tf.data.Dataset.from_tensor_slices(
-                    (
-                        {
-                            "hist_f": hist_inputs_f,
-                            "hist_t": hist_inputs_t,
-                            "hist_ex": hist_inputs_ex,
-                            "curr_f": curr_inputs_f,
-                            "curr_t": curr_inputs_t,
-                            "curr_ex": curr_inputs_ex,
-                            "cors": cors,
-                            "dec_inp_f": dec_inp_f,
-                            "dec_inp_t": dec_inp_t
-                        },
-                        {
-                            "y_t": y_t,
-                            "y": y
-                        }
-                    )
-                )
+                self.test_set, data_shape = self.load_data(datatype, load_saved_data)
 
                 if self.batch_size > 1:
                     self.test_set = self.test_set.batch(self.batch_size)
                 else:
-                    self.test_set = self.test_set.shuffle(int(hist_inputs_f.shape[0])).batch(self.batch_size)
+                    self.test_set = self.test_set.shuffle(int(data_shape[0])).batch(self.batch_size)
 
             if strategy:
                 return strategy.experimental_distribute_dataset(self.test_set)
@@ -121,5 +98,5 @@ def write_result(path, str):
 
 if __name__ == "__main__":
     dg = DatasetGenerator()
-    a, b = dg.load_dataset(load_saved_data=True)
-    c = dg.load_dataset(datatype='test', load_saved_data=True)
+    a, b = dg.build_dataset(load_saved_data=True)
+    c = dg.build_dataset(datatype='test', load_saved_data=True)
