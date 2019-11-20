@@ -11,6 +11,7 @@ actfunc = 'relu'
 
 final_cnn_filters = 128
 
+
 def get_angles(pos, i, d_model):
     angle_rates = 1 / np.power(10000, (2 * (i // 2)) / np.float32(d_model))
     return pos * angle_rates
@@ -21,7 +22,7 @@ def spatial_posenc(position_r, position_c, d_model):
 
     angle_rads_c = get_angles(position_c, np.arange(d_model)[np.newaxis, :], d_model)
 
-    pos_encoding = np.zeros(angle_rads_r.shape, dtype=angle_rads_r.dtype)
+    pos_encoding = np.zeros(angle_rads_r.shape, dtype=np.float32)
 
     pos_encoding[:, 0::2] = np.sin(angle_rads_r[:, 0::2])
 
@@ -35,7 +36,7 @@ def spatial_posenc_batch(position_r, position_c, d_model):
 
     angle_rads_c = get_angles(position_c[..., np.newaxis], np.arange(d_model)[np.newaxis, :], d_model)
 
-    pos_encoding = np.zeros(angle_rads_r.shape, dtype=angle_rads_r.dtype)
+    pos_encoding = np.zeros(angle_rads_r.shape, dtype=np.float32)
 
     pos_encoding[..., 0::2] = np.sin(angle_rads_r[..., 0::2])
 
@@ -86,9 +87,9 @@ class Gated_Conv(layers.Layer):
         self.num_layers = num_layers
 
         self.conv_layers_f = [[layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same')
-                                  for _ in range(num_layers)] for _ in range(seq_len)]
+                               for _ in range(num_layers)] for _ in range(seq_len)]
         self.conv_layers_t = [[layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same')
-                                   for _ in range(num_layers)] for _ in range(seq_len)]
+                               for _ in range(num_layers)] for _ in range(seq_len)]
 
         self.sigm = [[layers.Activation(sigmoid) for _ in range(num_layers)] for _ in range(seq_len)]
 
@@ -223,7 +224,7 @@ class MultiHeadAttention(layers.Layer):
         q = self.split_heads(q, batch_size)
         k = self.split_heads(k, batch_size)
         v = self.split_heads(v, batch_size)
-        
+
         scaled_attention, attention_weights = scaled_dot_product_attention(q, k, v, mask)
 
         scaled_attention = tf.transpose(scaled_attention, perm=[0, 2, 1, 3])
@@ -329,7 +330,7 @@ class DecoderLayer(layers.Layer):
 
         self.mha1 = MultiHeadAttention(d_model, num_heads)
         self.mha2 = MultiHeadAttention(d_model, num_heads)
-        
+
         self.ffn = point_wise_feed_forward_network(d_model, dff)
 
         self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
@@ -362,25 +363,84 @@ class Encoder(layers.Layer):
 
         self.d_model = d_model
         self.num_layers = num_layers
+        self.seq_len = seq_len
 
         self.ex_enc = ex_encoding(d_model)
         self.dropout = layers.Dropout(dpo_rate)
 
         self.gated_conv = Gated_Conv(cnn_layers, cnn_filters, seq_len, dpo_rate)
+        self.gated_conv_t = Gated_Conv(cnn_layers, cnn_filters, seq_len, dpo_rate)
 
-        self.fwrd_encs = [EncoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(num_layers)]
-        self.bcwrd_encs = [EncoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(num_layers)]
+        self.sigm = layers.Activation(sigmoid)
 
-    def call(self, x, ex, cors, training, mask=None):
-        ex_enc = self.dropout(self.ex_encoding(ex))
-        pos_enc = tf.expand_dims(tf.expand_dims(ex_enc, axis=1), axis=1)
+        self.encs = [EncoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(num_layers)]
 
-        x = self.local_conv(x, training)
+    def call(self, x, ex, cors, t_gate, training, mask=None):
+        ex_enc = tf.expand_dims(self.dropout(self.ex_encoding(ex), training=training), axis=2)
+        pos_enc = tf.expand_dims(spatial_posenc_batch(cors[..., 0], cors[..., 1], self.d_model))
+
+        t_gate = self.sigm(self.gated_conv_t(t_gate, training))
+        x = self.gated_conv(x, training) * t_gate
         x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
-        x += pos_enc
+        x_shape = tf.shape(x)
+        x = tf.reshape(x, [x_shape[0], x_shape[1], -1, x_shape[4]])
+        x = x + ex_enc + pos_enc
+
+        x = tf.reshape(x, [x_shape[0], -1, x_shape[4]])
 
         for i in range(self.num_layers):
-            x = self.fwrd_encs[i](x, training, mask)
+            x = self.encs[i](x, training, mask)
+
+        return x
+
+
+class EncoderBR(layers.Layer):
+    def __init__(self, num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters, seq_len, dpo_rate=0.1):
+        super(EncoderBR, self).__init__()
+
+        self.d_model = d_model
+        self.num_layers = num_layers
+        self.seq_len = seq_len
+
+        self.ex_enc = ex_encoding(d_model)
+        self.dropout = layers.Dropout(dpo_rate)
+
+        self.gated_conv = Gated_Conv(cnn_layers, cnn_filters, seq_len, dpo_rate)
+        self.gated_conv_t = Gated_Conv(cnn_layers, cnn_filters, seq_len, dpo_rate)
+
+        self.sigm = layers.Activation(sigmoid)
+
+        self.fwrd_encs = [[EncoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(seq_len)] for _ in range(num_layers)]
+        self.bcwrd_encs = [[EncoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range()] for _ in range(num_layers)]
+
+        self.mem = [[] for _ in range(num_layers)]
+        self.mem_r = [[] for _ in range(num_layers)]
+
+    def call(self, x, ex, cors, t_gate, training, mask=None):
+        ex_enc = tf.expand_dims(self.dropout(self.ex_encoding(ex), training=training), axis=2)
+        pos_enc = tf.expand_dims(spatial_posenc_batch(cors[..., 0], cors[..., 1], self.d_model))
+
+        t_gate = self.sigm(self.gated_conv_t(t_gate, training))
+        x = self.gated_conv(x, training) * t_gate
+        x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+        x_shape = tf.shape(x)
+        x = tf.reshape(x, [x_shape[0], x_shape[1], -1, x_shape[4]])
+        x = x + ex_enc + pos_enc
+
+        x_rev = tf.reverse(x, axis=1)
+
+        self.mem[0] = [x[:, i, ...] for i in range(self.seq_len)]
+        self.mem_r[0] = [x_rev[:, i, ...] for i in range(self.seq_len)]
+
+        for i in range(self.num_layers):
+            for l in range(self.seq_len - 1):
+                inp = tf.concat([tf.stop_gradient(self.mem[i][l]), self.mem[i][l + 1]], axis=-1)
+                inp_r = tf.concat([tf.stop_gradient(self.mem_r[i][l]), self.mem_r[i][l + 1]], axis=-1)
+                output = self.fwrd_encs[i](inp, training, mask)
+                output_r = self.bcwrd_encs[i](inp_r, training, mask)
+                if i < len(self.mem):
+                    self.mem[i + 1].append(output)
+                    self.mem_r[i + 1].append(output_r)
 
         return x
 
@@ -392,14 +452,8 @@ class Decoder(layers.Layer):
         self.d_model = d_model
         self.num_layers = num_layers
 
-        self.local_conv = Local_Conv(cnn_layers, cnn_filters, 1, dpo_rate)
-
-        self.ex_encoding = Sequential(
-            [
-                layers.Dense(d_model * 2, activation=actfunc),
-                layers.Dense(d_model, activation='sigmoid')
-            ]
-        )
+        self.ex_encoding = ex_encoding(d_model)
+        self.dropout = layers.Dropout(dpo_rate)
 
         self.dec_layers = [DecoderLayer(d_model, num_heads, dff, dpo_rate)
                            for _ in range(num_layers)]
