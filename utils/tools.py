@@ -96,6 +96,11 @@ def write_result(path, str):
         file.write(str)
 
 
+def create_look_ahead_mask(size):
+  mask = 1 - tf.linalg.band_part(tf.ones((size, size)), -1, 0)
+  return mask  # (seq_len, seq_len)
+
+
 if __name__ == "__main__":
     dg = DatasetGenerator()
     a, b = dg.build_dataset(load_saved_data=True)

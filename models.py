@@ -284,7 +284,7 @@ class Decoder(layers.Layer):
         self.decs = [[DecoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(seq_len)] for _ in range(num_layers)]
         self.out_lyr = [layers.Dense(2, activation=actfunc) for _ in range(seq_len)]
 
-    def call(self, x, ex, mem, training,
+    def call(self, x, ex, enc_outputs, training,
              look_ahead_mask=None, padding_mask=None):
         attention_weights = {}
 
@@ -299,55 +299,32 @@ class Decoder(layers.Layer):
 
         for i in range(self.num_layers):
             for l in range(self.seq_len):
-                outputs[l], block1, block2 = self.dec_layers[i](x, mem[l], training, look_ahead_mask, padding_mask)
+                outputs[l], block1, block2 = self.dec_layers[i](outputs[l], enc_outputs[l], training, look_ahead_mask, padding_mask)
                 attention_weights['decoder{}_layer{}_block1'.format(l + 1, i + 1)] = block1
                 attention_weights['decoder{}_layer{}_block2'.format(l + 1, i + 1)] = block2
-                outputs[l] = x
+                if i == self.num_layers - 1:
+                    outputs[l] = self.out_lyr[l](outputs[l])
 
         return outputs, attention_weights
 
 
-class ST_SAN(Model):
-    def __init__(self, num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters, seq_len,
-                 d_final=256, output_size_t=4, dpo_rate=0.1):
-        super(ST_SAN, self).__init__()
+class STSAN_XL(Model):
+    def __init__(self, num_layers, d_model, d_global, num_heads, dff, cnn_layers, cnn_filters, seq_len, dpo_rate=0.1):
+        super(STSAN_XL, self).__init__()
 
-        self.encoder_f = Encoder(num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters,
-                                 seq_len, dpo_rate)
-        self.encoder_t = Encoder(num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters,
-                                 seq_len, dpo_rate)
+        self.encoder = Encoder(num_layers, d_model, d_global, num_heads, dff, cnn_layers, cnn_filters, seq_len, dpo_rate)
 
-        self.decoder_f = Decoder(num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters,
-                                 dpo_rate)
-        self.decoder_t = Decoder(num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters,
-                                 dpo_rate)
+        self.decoder = Decoder(num_layers, d_model, num_heads, dff, seq_len, dpo_rate)
 
-        self.dropout_t = layers.Dropout(dpo_rate)
-        self.final_layer_t = layers.Dense(output_size_t, activation='tanh')
+        self.final_lyr = layers.Dense(2, activation='tanh')
+        self.dropout = layers.Dropout(dpo_rate)
 
-        self.gated_conv_1 = Gated_Conv_1(cnn_layers, cnn_filters, seq_len, dpo_rate=dpo_rate)
-        self.gated_conv_2 = Gated_Conv_2(d_final, dpo_rate=dpo_rate)
+    def call(self, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, training, look_ahead_mask):
+        enc_outputs = self.encoder(inp_ft[..., :2], inp_ex, cors, inp_ft[..., 2:], training)
 
-    def call(self, flow_hist, trans_hist, ex_hist, flow_curr, trans_curr, ex_curr, training):
-        flow_enc_inputs = tf.concat([flow_hist, flow_curr[:, :, :, 1:, :]], axis=-2)
-        trans_enc_inputs = tf.concat([trans_hist, trans_curr[:, :, :, 1:, :]], axis=-2)
-        ex_enc_inputs = tf.concat([ex_hist, ex_curr[:, 1:, :]], axis=-2)
+        dec_outputs, attention_weights = self.decoder(dec_inp_f, dec_inp_ex, enc_outputs, training, look_ahead_mask=look_ahead_mask)
 
-        flow_dec_input = flow_curr[:, :, :, -1:, :]
-        trans_dec_input = trans_curr[:, :, :, -1:, :]
-        ex_dec_input = ex_curr[:, -1:, :]
+        dec_output = tf.concat(dec_outputs, axis=-1)
+        final_output = self.final_lyr(self.dropout(dec_output), training)
 
-        enc_outputs_t = self.encoder_t(trans_enc_inputs, ex_enc_inputs, training)
-        enc_outputs_flow = self.encoder_f(flow_enc_inputs, ex_enc_inputs, training)
-
-        enc_outputs_flow_gated = self.gated_conv_1(enc_outputs_flow, enc_outputs_t, training)
-
-        dec_output_t, _ = self.decoder_t(trans_dec_input, ex_dec_input, enc_outputs_t, training)
-        dec_output_flow, attention_weights_t = self.decoder_f(flow_dec_input, ex_dec_input, enc_outputs_flow_gated,
-                                                              training)
-
-        final_output_t = self.dropout_t(tf.squeeze(dec_output_t, axis=-2), training=training)
-        final_output_t = self.final_layer_t(final_output_t)
-        final_output = self.gated_conv_2(dec_output_flow, dec_output_t, training)
-
-        return final_output, final_output_t, attention_weights_t
+        return final_output, attention_weights
