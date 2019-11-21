@@ -178,7 +178,7 @@ class DataLoader_Global:
                         dec_inp_t_sample[..., 2] = t_data[0, t - 1: t + n_pred - 1, i, j, ...]
                         dec_inp_t_sample[..., 3] = t_data[1, t - 1: t + n_pred - 1, i, j, ...]
 
-                        dec_inp_f.append(np.concatenate([f_data[t - 1: t + n_pred - 1, i, j, :], dec_inp_t_sample[:, i, j, :]], axis=-1))
+                        dec_inp_f.append(f_data[t - 1: t + n_pred - 1, i, j, :])
                         dec_inp_t.append(dec_inp_t_sample)
 
                         dec_inp_ex.append(ex_data[t - 1: t + n_pred - 1, :])
