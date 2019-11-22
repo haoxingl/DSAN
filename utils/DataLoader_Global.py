@@ -51,8 +51,8 @@ class DataLoader_Global:
             dec_inp_t = np.load("data/dec_inp_t_{}_{}.npz".format(self.dataset, datatype))['data']
             dec_inp_ex = np.load("data/dec_inp_ex_{}_{}.npz".format(self.dataset, datatype))['data']
             cors = np.load("data/cors_{}_{}.npz".format(self.dataset, datatype))['data']
-            y = np.load("data/y_{}_{}.npz".format(self.dataset, datatype))['data']
             y_t = np.load("data/y_t_{}_{}.npz".format(self.dataset, datatype))['data']
+            y = np.load("data/y_{}_{}.npz".format(self.dataset, datatype))['data']
 
             return inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y
         else:
@@ -103,8 +103,8 @@ class DataLoader_Global:
                 if t % 100 == 0:
                     print("Currently at {} interval...".format(t))
 
-                for i in range(f_data.shape[1]):
-                    for j in range(f_data.shape[2]):
+                for r in range(data_shape[1]):
+                    for c in range(data_shape[2]):
 
                         """ initialize the array to hold the samples of each node at each time interval """
 
@@ -122,10 +122,10 @@ class DataLoader_Global:
 
                                 global_t = np.zeros((data_shape[1], data_shape[2], 4), dtype=np.float32)
 
-                                global_t[..., 0] = t_data[0, t_now, ..., i, j]
-                                global_t[..., 1] = t_data[1, t_now, ..., i, j]
-                                global_t[..., 2] = t_data[0, t_now, i, j, ...]
-                                global_t[..., 3] = t_data[1, t_now, i, j, ...]
+                                global_t[..., 0] = t_data[0, t_now, ..., r, c]
+                                global_t[..., 1] = t_data[1, t_now, ..., r, c]
+                                global_t[..., 2] = t_data[0, t_now, r, c, ...]
+                                global_t[..., 3] = t_data[1, t_now, r, c, ...]
 
                                 inp_ft_sample.append(np.concatenate([global_f, global_t], axis=-1))
                                 inp_ex_sample.append(ex_data[t_now, :])
@@ -143,10 +143,10 @@ class DataLoader_Global:
 
                                 global_t = np.zeros((data_shape[1], data_shape[2], 4), dtype=np.float32)
 
-                                global_t[..., 0] = t_data[0, t_now, ..., i, j]
-                                global_t[..., 1] = t_data[1, t_now, ..., i, j]
-                                global_t[..., 2] = t_data[0, t_now, i, j, ...]
-                                global_t[..., 3] = t_data[1, t_now, i, j, ...]
+                                global_t[..., 0] = t_data[0, t_now, ..., r, c]
+                                global_t[..., 1] = t_data[1, t_now, ..., r, c]
+                                global_t[..., 2] = t_data[0, t_now, r, c, ...]
+                                global_t[..., 3] = t_data[1, t_now, r, c, ...]
 
                                 inp_ft_sample.append(np.concatenate([global_f, global_t], axis=-1))
                                 inp_ex_sample.append(ex_data[t_now, :])
@@ -159,10 +159,10 @@ class DataLoader_Global:
 
                             global_t = np.zeros((data_shape[1], data_shape[2], 4), dtype=np.float32)
 
-                            global_t[..., 0] = t_data[0, t_now, ..., i, j]
-                            global_t[..., 1] = t_data[1, t_now, ..., i, j]
-                            global_t[..., 2] = t_data[0, t_now, i, j, ...]
-                            global_t[..., 3] = t_data[1, t_now, i, j, ...]
+                            global_t[..., 0] = t_data[0, t_now, ..., r, c]
+                            global_t[..., 1] = t_data[1, t_now, ..., r, c]
+                            global_t[..., 2] = t_data[0, t_now, r, c, ...]
+                            global_t[..., 3] = t_data[1, t_now, r, c, ...]
 
                             inp_ft_sample.append(np.concatenate([global_f, global_t], axis=-1))
                             inp_ex_sample.append(ex_data[t_now, :])
@@ -173,27 +173,27 @@ class DataLoader_Global:
 
                         dec_inp_t_sample = np.zeros((n_pred, data_shape[1], data_shape[2], 4), dtype=np.float32)
 
-                        dec_inp_t_sample[..., 0] = t_data[0, t - 1: t + n_pred - 1, ..., i, j]
-                        dec_inp_t_sample[..., 1] = t_data[1, t - 1: t + n_pred - 1, ..., i, j]
-                        dec_inp_t_sample[..., 2] = t_data[0, t - 1: t + n_pred - 1, i, j, ...]
-                        dec_inp_t_sample[..., 3] = t_data[1, t - 1: t + n_pred - 1, i, j, ...]
+                        dec_inp_t_sample[..., 0] = t_data[0, t - 1: t + n_pred - 1, ..., r, c]
+                        dec_inp_t_sample[..., 1] = t_data[1, t - 1: t + n_pred - 1, ..., r, c]
+                        dec_inp_t_sample[..., 2] = t_data[0, t - 1: t + n_pred - 1, r, c, ...]
+                        dec_inp_t_sample[..., 3] = t_data[1, t - 1: t + n_pred - 1, r, c, ...]
 
-                        dec_inp_f.append(f_data[t - 1: t + n_pred - 1, i, j, :])
+                        dec_inp_f.append(f_data[t - 1: t + n_pred - 1, r, c, :])
                         dec_inp_t.append(dec_inp_t_sample)
 
                         dec_inp_ex.append(ex_data[t - 1: t + n_pred - 1, :])
 
-                        cors.append(self.cor_gen.get(i, j))
+                        cors.append(self.cor_gen.get(r, c))
 
                         """ generating the ground truth for each sample """
-                        y.append(f_data[t: t + n_pred, i, j, :])
+                        y.append(f_data[t: t + n_pred, r, c, :])
 
                         tar_t = np.zeros((n_pred, data_shape[1], data_shape[2], 4), dtype=np.float32)
 
-                        tar_t[..., 0] = t_data[0, t: t + n_pred, ..., i, j]
-                        tar_t[..., 1] = t_data[1, t: t + n_pred, ..., i, j]
-                        tar_t[..., 2] = t_data[0, t: t + n_pred, i, j, ...]
-                        tar_t[..., 3] = t_data[1, t: t + n_pred, i, j, ...]
+                        tar_t[..., 0] = t_data[0, t: t + n_pred, ..., r, c]
+                        tar_t[..., 1] = t_data[1, t: t + n_pred, ..., r, c]
+                        tar_t[..., 2] = t_data[0, t: t + n_pred, r, c, ...]
+                        tar_t[..., 3] = t_data[1, t: t + n_pred, r, c, ...]
 
                         y_t.append(tar_t)
 
@@ -217,12 +217,12 @@ class DataLoader_Global:
             np.savez_compressed("data/dec_inp_t_{}_{}.npz".format(self.dataset, datatype), data=dec_inp_t)
             np.savez_compressed("data/dec_inp_ex_{}_{}.npz".format(self.dataset, datatype), data=dec_inp_ex)
             np.savez_compressed("data/cors_{}_{}.npz".format(self.dataset, datatype), data=cors)
-            np.savez_compressed("data/y_{}_{}.npz".format(self.dataset, datatype), data=y)
             np.savez_compressed("data/y_t_{}_{}.npz".format(self.dataset, datatype), data=y_t)
+            np.savez_compressed("data/y_{}_{}.npz".format(self.dataset, datatype), data=y)
 
             return inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y
 
 
 if __name__ == "__main__":
     dl = DataLoader_Global()
-    inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y = dl.generate_data(datatype='test', load_saved_data=False)
+    inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y = dl.generate_data(datatype='train', load_saved_data=True)

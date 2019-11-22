@@ -71,14 +71,9 @@ class GatedConv(layers.Layer):
             output = tf.expand_dims(output, axis=1)
             outputs.append(output)
 
-        output_final = self.sigm(tf.concat(outputs, axis=1))
+        output_final = self.sigm(tf.concat(outputs, axis=1)) if self.sig_act else tf.concat(outputs, axis=1)
 
         return output_final
-    
-    
-def LinearConv(d_model, dpo_rate=0.1):
-    return Sequential([layers.Dense(d_model, activation=actfunc) for _ in range(2)]
-                      + [DenseDropout(d_model, dpo_rate)])
 
 
 def scaled_dot_product_attention(q, k, v, mask):
@@ -154,21 +149,18 @@ def ex_encoding(d_model):
 
 
 class DenseDropout(layers.Layer):
-    def __init__(self, out_size, dpo_rate=0.1):
+    def __init__(self, d_size, dpo_rate=0.1):
         super(DenseDropout, self).__init__()
 
-        self.dense = layers.Dense(out_size, activation=actfunc)
+        self.dense = Sequential([layers.Dense(d_size[i], activation=actfunc) for i in range(len(d_size))])
         self.dropout = layers.Dropout(dpo_rate)
 
     def call(self, x, training, dpo_out=True):
-        if dpo_out:
-            return self.dropout(self.dense(x), training=training)
-        else:
-            return self.dense(self.dropout(x, training=training))
+        return self.dropout(self.dense(x), training=training) if dpo_out else self.dense(self.dropout(x, training=training))
 
 
 class EncoderLayer(layers.Layer):
-    def __init__(self, d_model, num_heads, dff=256, dpo_rate=0.1):
+    def __init__(self, d_model, num_heads, dff, dpo_rate=0.1):
         super(EncoderLayer, self).__init__()
 
         self.mha = MultiHeadAttention(d_model, num_heads)
@@ -240,20 +232,22 @@ class Encoder(layers.Layer):
         self.gated_conv_t = GatedConv(cnn_layers, cnn_filters, seq_len, dpo_rate, sig_act=True)
 
         self.encs = [[EncoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(seq_len)] for _ in range(num_layers)]
-        self.dense_g = [[DenseDropout(d_global, dpo_rate) for _ in range(seq_len)] for _ in range(num_layers)]
+        self.dense_g = [[DenseDropout([d_global], dpo_rate) for _ in range(seq_len)] for _ in range(num_layers)]
 
         self.mem = [[] for _ in range(num_layers + 1)]
 
     def call(self, x, ex, cors, t_gate, training, mask=None):
         data_shape = tf.shape(x)
 
-        ex_enc = tf.expand_dims(self.dropout(self.ex_encoding(ex), training=training), axis=2)
+        ex_enc = tf.expand_dims(self.ex_encoding(ex), axis=2)
         pos_enc = tf.expand_dims(spatial_posenc_batch(cors[..., 0], cors[..., 1], self.d_model), axis=1)
 
         x = self.gated_conv(x, training) * self.gated_conv_t(t_gate, training)
         x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
         x = tf.reshape(x, [data_shape[0], data_shape[1], -1, data_shape[4]])
-        x += ex_enc + pos_enc
+        x = x + ex_enc + pos_enc
+
+        x = self.dropout(x, training=training)
 
         self.mem[0] = [x[:, i, ...] for i in range(self.seq_len)]
 
@@ -277,33 +271,37 @@ class Decoder(layers.Layer):
         self.seq_len = seq_len
 
         self.ex_encoding = ex_encoding(d_model)
-        self.dpo_ex = layers.Dropout(dpo_rate)
+        self.dropout = layers.Dropout(dpo_rate)
 
-        self.li_conv = LinearConv(d_model, dpo_rate)
+        self.li_conv = DenseDropout([d_model for _ in range(3)], dpo_rate)
 
         self.decs = [[DecoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(seq_len)] for _ in range(num_layers)]
-        self.out_lyr = [layers.Dense(2, activation=actfunc) for _ in range(seq_len)]
+        self.out_lyr = [DenseDropout([2], dpo_rate) for _ in range(seq_len)]
 
-    def call(self, x, ex, enc_outputs, training,
-             look_ahead_mask=None, padding_mask=None):
+    def call(self, x, ex, enc_outputs, training, concated=False, look_ahead_mask=None, padding_mask=None):
         attention_weights = {}
 
-        ex_enc = self.dpo_ex(self.ex_encoding(ex), training=training)
+        ex_enc = self.ex_encoding(ex)
         pos_enc = spatial_posenc(0, 0, self.d_model)
 
-        x = self.li_conv(x)
+        x = self.li_conv(x, training)
         x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
         x = x + ex_enc + pos_enc
+
+        x = self.dropout(x, training=training)
 
         outputs = [x for _ in range(self.seq_len)]
 
         for i in range(self.num_layers):
             for l in range(self.seq_len):
-                outputs[l], block1, block2 = self.dec_layers[i](outputs[l], enc_outputs[l], training, look_ahead_mask, padding_mask)
+                outputs[l], block1, block2 = self.dec_layers[i][l](outputs[l], enc_outputs[l], training, look_ahead_mask, padding_mask)
                 attention_weights['decoder{}_layer{}_block1'.format(l + 1, i + 1)] = block1
                 attention_weights['decoder{}_layer{}_block2'.format(l + 1, i + 1)] = block2
                 if i == self.num_layers - 1:
-                    outputs[l] = self.out_lyr[l](outputs[l])
+                    outputs[l] = self.out_lyr[l](outputs[l], training, dpo_out=False)
+
+        if concated:
+            outputs = tf.concat(outputs, axis=-1)
 
         return outputs, attention_weights
 
@@ -319,12 +317,11 @@ class STSAN_XL(Model):
         self.final_lyr = layers.Dense(2, activation='tanh')
         self.dropout = layers.Dropout(dpo_rate)
 
-    def call(self, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, training, look_ahead_mask):
+    def call(self, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, training, look_ahead_mask=None):
         enc_outputs = self.encoder(inp_ft[..., :2], inp_ex, cors, inp_ft[..., 2:], training)
 
-        dec_outputs, attention_weights = self.decoder(dec_inp_f, dec_inp_ex, enc_outputs, training, look_ahead_mask=look_ahead_mask)
+        dec_outputs, attention_weights = self.decoder(dec_inp_f, dec_inp_ex, enc_outputs, training, True, look_ahead_mask=look_ahead_mask)
 
-        dec_output = tf.concat(dec_outputs, axis=-1)
-        final_output = self.final_lyr(self.dropout(dec_output), training)
+        final_output = self.final_lyr(self.dropout(dec_outputs, training=training))
 
         return final_output, attention_weights

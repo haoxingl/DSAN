@@ -12,14 +12,15 @@ parser.add_argument('--model_indexes', default=[1, 2], help='indexes of model to
 """ Model hyperparameters """
 parser.add_argument('--num_layers', default=4, help='num of self-attention layers')
 parser.add_argument('--d_model', default=64, help='model dimension')
+parser.add_argument('--d_global', default=64, help='model dimension')
 parser.add_argument('--dff', default=128, help='dimension of feed-forward networks')
 parser.add_argument('--d_final', default=256, help='dimension of final output dense layer')
 parser.add_argument('--num_heads', default=8, help='number of attention heads')
 parser.add_argument('--dropout_rate', default=0.1)
 parser.add_argument('--cnn_layers', default=3)
 parser.add_argument('--cnn_filters', default=64)
-# parser.add_argument('--weight_f_in', default=0.4)
-# parser.add_argument('--weight_f_out', default=0.4)
+parser.add_argument('--weight_f_in', default=0.4)
+parser.add_argument('--weight_f_out', default=0.6)
 parser.add_argument('--weight_f', default=0.5)
 parser.add_argument('--weight_t', default=0.5)
 parser.add_argument('--weight_in', default=0.4)
@@ -40,14 +41,14 @@ n_hist_day = 7
 n_hist_int = 3
 n_curr_int = 1
 n_int_before = 1
-n_int_enc = (n_hist_week + n_hist_day) * n_hist_int + n_curr_int
+seq_len = (n_hist_week + n_hist_day) * n_hist_int + n_curr_int
 parser.add_argument('--load_saved_data', default=True)
 parser.add_argument('--n_hist_week', default=n_hist_week, help='num of previous weeks to consider')
 parser.add_argument('--n_hist_day', default=n_hist_day, help='num of previous days to consider')
 parser.add_argument('--n_hist_int', default=n_hist_int, help='num of time in previous days to consider')
 parser.add_argument('--n_curr_int', default=n_curr_int, help='num of time in today to consider')
 parser.add_argument('--n_int_before', default=1, help='num of time before predicted time to consider')
-parser.add_argument('--n_int_enc', default=n_int_enc, help='total length of historical data')
+parser.add_argument('--seq_len', default=seq_len, help='total length of historical data')
 parser.add_argument('--n_pred', default=5, help='future time to predict')
 
 args = parser.parse_args()
