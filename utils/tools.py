@@ -6,7 +6,7 @@ from utils.DataLoader_Global import DataLoader_Global as dl
 
 class DatasetGenerator:
     def __init__(self, dataset='taxi', batch_size=64, n_hist_week=0, n_hist_day=7,
-                 n_hist_int=3, n_curr_int=1, n_int_before=1, n_pred=5):
+                 n_hist_int=3, n_curr_int=1, n_int_before=1, n_pred=5, testing=False):
         self.dataset = dataset
         self.batch_size = batch_size
         self.n_hist_week = n_hist_week
@@ -17,7 +17,7 @@ class DatasetGenerator:
         self.n_pred = n_pred
         self.train_data_loaded = False
         self.test_data_loaded = False
-        self.data_loader = dl(self.dataset)
+        self.data_loader = dl(self.dataset, testing)
 
     def load_data(self, datatype, load_saved_data):
         inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y = self.data_loader.generate_data(
@@ -91,7 +91,9 @@ class DatasetGenerator:
                 return self.test_set
 
 
-def write_result(path, str):
+def write_result(path, str, print_str=True):
+    if print_str:
+        print(str)
     with open(path, 'a+') as file:
         file.write(str)
 

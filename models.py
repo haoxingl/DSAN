@@ -239,7 +239,7 @@ class Encoder(layers.Layer):
     def call(self, x, ex, cors, t_gate, training, mask=None):
         data_shape = tf.shape(x)
 
-        ex_enc = tf.expand_dims(self.ex_encoding(ex), axis=2)
+        ex_enc = tf.expand_dims(self.ex_enc(ex), axis=2)
         pos_enc = tf.expand_dims(spatial_posenc_batch(cors[..., 0], cors[..., 1], self.d_model), axis=1)
 
         x = self.gated_conv(x, training) * self.gated_conv_t(t_gate, training)
@@ -270,7 +270,7 @@ class Decoder(layers.Layer):
         self.num_layers = num_layers
         self.seq_len = seq_len
 
-        self.ex_encoding = ex_encoding(d_model)
+        self.ex_enc = ex_encoding(d_model)
         self.dropout = layers.Dropout(dpo_rate)
 
         self.li_conv = DenseDropout([d_model for _ in range(3)], dpo_rate)
@@ -281,7 +281,7 @@ class Decoder(layers.Layer):
     def call(self, x, ex, enc_outputs, training, concated=False, look_ahead_mask=None, padding_mask=None):
         attention_weights = {}
 
-        ex_enc = self.ex_encoding(ex)
+        ex_enc = self.ex_enc(ex)
         pos_enc = spatial_posenc(0, 0, self.d_model)
 
         x = self.li_conv(x, training)

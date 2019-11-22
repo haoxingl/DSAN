@@ -6,7 +6,7 @@ import shutil
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike')
-parser.add_argument('--gpu_ids', default='0, 1, 2, 3, 4, 5, 6, 7', help='indexes of gpus to use')
+parser.add_argument('--gpu_ids', default='4, 5, 6, 7', help='indexes of gpus to use')
 parser.add_argument('--model_indexes', default=[1, 2], help='indexes of model to be trained')
 
 """ Model hyperparameters """
@@ -42,7 +42,7 @@ n_hist_int = 3
 n_curr_int = 1
 n_int_before = 1
 seq_len = (n_hist_week + n_hist_day) * n_hist_int + n_curr_int
-parser.add_argument('--load_saved_data', default=True)
+parser.add_argument('--load_saved_data', default=False)
 parser.add_argument('--n_hist_week', default=n_hist_week, help='num of previous weeks to consider')
 parser.add_argument('--n_hist_day', default=n_hist_day, help='num of previous days to consider')
 parser.add_argument('--n_hist_int', default=n_hist_int, help='num of time in previous days to consider')
@@ -102,4 +102,4 @@ if __name__ == "__main__":
                 pass
         model_trainer = ModelTrainer(model_index, args)
         print("\nStrat training STSAN-XL...\n")
-        model_trainer.train_st_san()
+        model_trainer.train()
