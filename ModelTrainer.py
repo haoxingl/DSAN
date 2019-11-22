@@ -37,7 +37,8 @@ class ModelTrainer:
         self.model_index = model_index
         self.args = args
         self.GLOBAL_BATCH_SIZE = args.BATCH_SIZE * strategy.num_replicas_in_sync
-        self.dataset_generator = DatasetGenerator(args.dataset,
+        self.dataset_generator = DatasetGenerator(args.d_model,
+                                                  args.dataset,
                                                   self.GLOBAL_BATCH_SIZE,
                                                   args.n_hist_week,
                                                   args.n_hist_day,
@@ -304,6 +305,9 @@ class ModelTrainer:
 
                 tf_summary_scalar("epoch_time", time.time() - start, epoch + 1)
                 print('Time taken for 1 epoch: {} secs\n'.format(time.time() - start))
+
+                if testing:
+                    break
 
             write_result(result_output_path, "Start testing (filtering out trivial grids):\n")
             evaluate(test_dataset, epoch, final_test=True)

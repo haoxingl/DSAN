@@ -5,11 +5,11 @@ from utils.CordinateGenerator import CordinateGenerator
 
 
 class DataLoader_Global:
-    def __init__(self, dataset='taxi', testing=False):
+    def __init__(self, d_model, dataset='taxi', testing=False):
         assert dataset == 'taxi' or 'bike'
         self.dataset = dataset
         self.pmt = param_taxi if dataset == 'taxi' else param_bike
-        self.cor_gen = CordinateGenerator(self.pmt.len_r, self.pmt.len_c)
+        self.cor_gen = CordinateGenerator(self.pmt.len_r, self.pmt.len_c, d_model)
         self.testing = testing
 
     def load_data_f(self, datatype='train'):
@@ -215,7 +215,7 @@ class DataLoader_Global:
             dec_inp_t = np.array(dec_inp_t, dtype=np.float32)
             dec_inp_ex = np.array(dec_inp_ex, dtype=np.float32)
 
-            cors = np.array(cors, dtype=np.int64)
+            cors = np.array(cors, dtype=np.float32)
 
             y = np.array(y, dtype=np.float32)
             y_t = np.array(y_t, dtype=np.float32)
@@ -234,5 +234,5 @@ class DataLoader_Global:
 
 
 if __name__ == "__main__":
-    dl = DataLoader_Global()
-    inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y = dl.generate_data(datatype='test', load_saved_data=True)
+    dl = DataLoader_Global(64, testing=True)
+    inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y = dl.generate_data(datatype='train', load_saved_data=False)

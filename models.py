@@ -31,20 +31,6 @@ def spatial_posenc(position_r, position_c, d_model):
     return tf.cast(pos_encoding[np.newaxis, ...], dtype=tf.float32)
 
 
-def spatial_posenc_batch(position_r, position_c, d_model):
-    angle_rads_r = get_angles(position_r[..., np.newaxis], np.arange(d_model)[np.newaxis, :], d_model)
-
-    angle_rads_c = get_angles(position_c[..., np.newaxis], np.arange(d_model)[np.newaxis, :], d_model)
-
-    pos_encoding = np.zeros(angle_rads_r.shape, dtype=np.float32)
-
-    pos_encoding[..., 0::2] = np.sin(angle_rads_r[..., 0::2])
-
-    pos_encoding[..., 1::2] = np.cos(angle_rads_c[..., 1::2])
-
-    return tf.cast(pos_encoding, dtype=tf.float32)
-
-
 class GatedConv(layers.Layer):
     def __init__(self, num_layers, num_filters, seq_len, dpo_rate=0.1, sig_act=False):
         super(GatedConv, self).__init__()
@@ -148,6 +134,23 @@ def ex_encoding(d_model):
     ])
 
 
+class GlobalDense(layers.Layer):
+    def __init__(self, d_model, dpo_rate=0.1):
+        super(GlobalDense, self).__init__(name='GlobalDense')
+        self.dense1 = layers.Dense(d_model, activation=actfunc)
+        self.dense2 = layers.Dense(d_model, activation=actfunc)
+        self.dropout = layers.Dropout(dpo_rate)
+
+    def call(self, x, inp_g, training):
+        inp_g = tf.concat(inp_g, axis=-1)
+        inp_g = self.dense1(inp_g)
+        x = tf.concat([x, inp_g], axis=-1)
+        output = self.dense2(x)
+        output = self.dropout(output, training)
+
+        return output
+
+
 class DenseDropout(layers.Layer):
     def __init__(self, d_size, dpo_rate=0.1):
         super(DenseDropout, self).__init__()
@@ -225,26 +228,26 @@ class Encoder(layers.Layer):
         self.num_layers = num_layers
         self.seq_len = seq_len
 
-        self.ex_enc = ex_encoding(d_model)
+        self.ex_encoder = ex_encoding(d_model)
         self.dropout = layers.Dropout(dpo_rate)
 
         self.gated_conv = GatedConv(cnn_layers, cnn_filters, seq_len, dpo_rate)
         self.gated_conv_t = GatedConv(cnn_layers, cnn_filters, seq_len, dpo_rate, sig_act=True)
 
         self.encs = [[EncoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(seq_len)] for _ in range(num_layers)]
-        self.dense_g = [[DenseDropout([d_global], dpo_rate) for _ in range(seq_len)] for _ in range(num_layers)]
+        self.dense_g = [[GlobalDense(d_global, dpo_rate) for _ in range(seq_len)] for _ in range(num_layers)]
 
         self.mem = [[] for _ in range(num_layers + 1)]
 
     def call(self, x, ex, cors, t_gate, training, mask=None):
         data_shape = tf.shape(x)
 
-        ex_enc = tf.expand_dims(self.ex_enc(ex), axis=2)
-        pos_enc = tf.expand_dims(spatial_posenc_batch(cors[..., 0], cors[..., 1], self.d_model), axis=1)
+        ex_enc = tf.expand_dims(self.ex_encoder(ex), axis=2)
+        pos_enc = tf.expand_dims(cors, axis=1)
 
         x = self.gated_conv(x, training) * self.gated_conv_t(t_gate, training)
         x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
-        x = tf.reshape(x, [data_shape[0], data_shape[1], -1, data_shape[4]])
+        x = tf.reshape(x, [data_shape[0], data_shape[1], -1, self.d_model])
         x = x + ex_enc + pos_enc
 
         x = self.dropout(x, training=training)
@@ -253,9 +256,8 @@ class Encoder(layers.Layer):
 
         for i in range(self.num_layers):
             for l in range(self.seq_len):
-                inp_g = tf.concat([tf.stop_gradient(self.mem[i][k]) for k in range(self.seq_len) if k != l], axis=-1)
-                inp_g = self.dense_g[i][l](inp_g, training)
-                inp = tf.concat([self.mem[i][l], inp_g], axis=-1)
+                inp_g = [tf.stop_gradient(self.mem[i][k]) for k in range(self.seq_len) if k != l]
+                inp = self.dense_g[i][l](self.mem[i][l], inp_g, training)
                 output = self.encs[i][l](inp, training, mask)
                 self.mem[i + 1].append(output)
 
@@ -270,21 +272,26 @@ class Decoder(layers.Layer):
         self.num_layers = num_layers
         self.seq_len = seq_len
 
-        self.ex_enc = ex_encoding(d_model)
+        self.ex_encoder = ex_encoding(d_model)
         self.dropout = layers.Dropout(dpo_rate)
 
-        self.li_conv = DenseDropout([d_model for _ in range(3)], dpo_rate)
+        self.li_conv = Sequential([
+            layers.Dense(d_model, activation=actfunc),
+            layers.Dense(d_model, activation=actfunc),
+            layers.Dense(d_model, activation=actfunc)
+        ])
 
         self.decs = [[DecoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(seq_len)] for _ in range(num_layers)]
-        self.out_lyr = [DenseDropout([2], dpo_rate) for _ in range(seq_len)]
+        self.out_lyr = [layers.Dense(2, activation=actfunc) for _ in range(seq_len)]
+        self.dropout_out = layers.Dropout(dpo_rate)
 
     def call(self, x, ex, enc_outputs, training, concated=False, look_ahead_mask=None, padding_mask=None):
         attention_weights = {}
 
-        ex_enc = self.ex_enc(ex)
+        ex_enc = self.ex_encoder(ex)
         pos_enc = spatial_posenc(0, 0, self.d_model)
 
-        x = self.li_conv(x, training)
+        x = self.li_conv(x)
         x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
         x = x + ex_enc + pos_enc
 
@@ -294,14 +301,14 @@ class Decoder(layers.Layer):
 
         for i in range(self.num_layers):
             for l in range(self.seq_len):
-                outputs[l], block1, block2 = self.dec_layers[i][l](outputs[l], enc_outputs[l], training, look_ahead_mask, padding_mask)
+                outputs[l], block1, block2 = self.decs[i][l](outputs[l], enc_outputs[l], training, look_ahead_mask, padding_mask)
                 attention_weights['decoder{}_layer{}_block1'.format(l + 1, i + 1)] = block1
                 attention_weights['decoder{}_layer{}_block2'.format(l + 1, i + 1)] = block2
                 if i == self.num_layers - 1:
                     outputs[l] = self.out_lyr[l](outputs[l], training, dpo_out=False)
 
         if concated:
-            outputs = tf.concat(outputs, axis=-1)
+            outputs = self.dropout_out(tf.concat(outputs, axis=-1))
 
         return outputs, attention_weights
 

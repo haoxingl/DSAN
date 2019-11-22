@@ -42,7 +42,7 @@ n_hist_int = 3
 n_curr_int = 1
 n_int_before = 1
 seq_len = (n_hist_week + n_hist_day) * n_hist_int + n_curr_int
-parser.add_argument('--load_saved_data', default=False)
+parser.add_argument('--load_saved_data', default=True)
 parser.add_argument('--n_hist_week', default=n_hist_week, help='num of previous weeks to consider')
 parser.add_argument('--n_hist_day', default=n_hist_day, help='num of previous days to consider')
 parser.add_argument('--n_hist_int', default=n_hist_int, help='num of time in previous days to consider')

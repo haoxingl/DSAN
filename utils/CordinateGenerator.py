@@ -2,10 +2,30 @@ import numpy as np
 
 
 class CordinateGenerator:
-    def __init__(self, len_r, len_c):
+    def __init__(self, len_r, len_c, d_model):
         self.len_r = len_r
         self.len_c = len_c
+        self.d_model = d_model
         self.dict = self.init_dict()
+
+    def get_angles(self, pos, i, d_model):
+        angle_rates = 1 / np.power(10000, (2 * (i // 2)) / np.float32(d_model))
+        return pos * angle_rates
+
+    def spatial_posenc(self, position_r, position_c):
+        d_model = self.d_model
+
+        angle_rads_r = self.get_angles(position_r, np.arange(d_model)[np.newaxis, :], d_model)
+
+        angle_rads_c = self.get_angles(position_c, np.arange(d_model)[np.newaxis, :], d_model)
+
+        pos_encoding = np.zeros(angle_rads_r.shape, dtype=np.float32)
+
+        pos_encoding[:, 0::2] = np.sin(angle_rads_r[:, 0::2])
+
+        pos_encoding[:, 1::2] = np.cos(angle_rads_c[:, 1::2])
+
+        return pos_encoding
 
     def init_dict(self):
         dict = {}
@@ -16,8 +36,8 @@ class CordinateGenerator:
                 cor = '[{}, {}]'.format(r, c)
                 mtx_r_flat = (mtx_r - r).flatten()[:, np.newaxis]
                 mtx_c_flat = (mtx_c - c).flatten()[:, np.newaxis]
-                pos_cors = np.concatenate([mtx_r_flat, mtx_c_flat], axis=-1)
-                dict[cor] = np.array(pos_cors, dtype=np.int64)
+                pos_cors = self.spatial_posenc(mtx_r_flat, mtx_c_flat)
+                dict[cor] = np.array(pos_cors, dtype=np.float32)
 
         return dict
 
@@ -28,5 +48,5 @@ class CordinateGenerator:
 
 
 if __name__ == "__main__":
-    g = CordinateGenerator(16, 12)
+    g = CordinateGenerator(16, 12, 64)
     mtx_dict = g.init_dict()
