@@ -43,9 +43,6 @@ class DataLoader_Global:
 
         assert datatype == 'train' or datatype == 'test'
 
-        if self.testing:
-            cnt = 0
-
         """ loading saved data """
         if load_saved_data:
             print('Loading {} data from .npzs...'.format(datatype))
@@ -201,9 +198,7 @@ class DataLoader_Global:
 
                         y_t.append(tar_t)
 
-                if self.testing:
-                    cnt += 1
-                    if cnt == 10:
+                if self.testing and t + 1 - time_start >= self.testing:
                         break
 
 

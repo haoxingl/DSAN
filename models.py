@@ -41,7 +41,7 @@ class GatedConv(layers.Layer):
 
         self.convs = [[layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same')
                                for _ in range(num_layers)] for _ in range(seq_len)]
-        self.dpo_layers = [layers.Dropout(dpo_rate * num_layers) for _ in range(seq_len)]
+        self.dpo_layers = [layers.Dropout(dpo_rate) for _ in range(seq_len)]
 
         if sig_act:
             self.sigm = layers.Activation(sigmoid)
@@ -138,28 +138,17 @@ class GlobalDense(layers.Layer):
     def __init__(self, d_model, dpo_rate=0.1):
         super(GlobalDense, self).__init__(name='GlobalDense')
         self.dense1 = layers.Dense(d_model, activation=actfunc)
-        self.dense2 = layers.Dense(d_model, activation=actfunc)
+        self.dense2 = layers.Dense(d_model)
         self.dropout = layers.Dropout(dpo_rate)
 
     def call(self, x, inp_g, training):
         inp_g = tf.concat(inp_g, axis=-1)
         inp_g = self.dense1(inp_g)
-        x = tf.concat([x, inp_g], axis=-1)
-        output = self.dense2(x)
+        x_out = tf.concat([x, inp_g], axis=-1)
+        output = self.dense2(x_out)
         output = self.dropout(output, training)
 
         return output
-
-
-class DenseDropout(layers.Layer):
-    def __init__(self, d_size, dpo_rate=0.1):
-        super(DenseDropout, self).__init__()
-
-        self.dense = Sequential([layers.Dense(d_size[i], activation=actfunc) for i in range(len(d_size))])
-        self.dropout = layers.Dropout(dpo_rate)
-
-    def call(self, x, training, dpo_out=True):
-        return self.dropout(self.dense(x), training=training) if dpo_out else self.dense(self.dropout(x, training=training))
 
 
 class EncoderLayer(layers.Layer):
@@ -237,31 +226,33 @@ class Encoder(layers.Layer):
         self.encs = [[EncoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(seq_len)] for _ in range(num_layers)]
         self.dense_g = [[GlobalDense(d_global, dpo_rate) for _ in range(seq_len)] for _ in range(num_layers)]
 
-        self.mem = [[] for _ in range(num_layers + 1)]
-
     def call(self, x, ex, cors, t_gate, training, mask=None):
         data_shape = tf.shape(x)
 
         ex_enc = tf.expand_dims(self.ex_encoder(ex), axis=2)
         pos_enc = tf.expand_dims(cors, axis=1)
 
-        x = self.gated_conv(x, training) * self.gated_conv_t(t_gate, training)
-        x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
-        x = tf.reshape(x, [data_shape[0], data_shape[1], -1, self.d_model])
-        x = x + ex_enc + pos_enc
+        x_gated = self.gated_conv(x, training) * self.gated_conv_t(t_gate, training)
+        x_gated *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+        x_flat = tf.reshape(x_gated, [data_shape[0], data_shape[1], -1, self.d_model])
+        enc_inp = x_flat + ex_enc + pos_enc
 
-        x = self.dropout(x, training=training)
+        enc_inp = self.dropout(enc_inp, training=training)
 
-        self.mem[0] = [x[:, i, ...] for i in range(self.seq_len)]
+        mem = tf.split(enc_inp, self.seq_len, axis=1)
+        outputs = [None for _ in range(self.seq_len)]
+
+        for i, tensor in enumerate(mem):
+            mem[i] = tf.squeeze(tensor, axis=1)
 
         for i in range(self.num_layers):
             for l in range(self.seq_len):
-                inp_g = [tf.stop_gradient(self.mem[i][k]) for k in range(self.seq_len) if k != l]
-                inp = self.dense_g[i][l](self.mem[i][l], inp_g, training)
-                output = self.encs[i][l](inp, training, mask)
-                self.mem[i + 1].append(output)
+                inp_g = [tf.stop_gradient(mem[k]) for k in range(self.seq_len) if k != l]
+                inp = self.dense_g[i][l](mem[l], inp_g, training)
+                outputs[l] = self.encs[i][l](inp, training, mask)
+            mem = outputs
 
-        return self.mem[self.num_layers]
+        return outputs
 
 
 class Decoder(layers.Layer):
@@ -282,35 +273,38 @@ class Decoder(layers.Layer):
         ])
 
         self.decs = [[DecoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(seq_len)] for _ in range(num_layers)]
-        self.out_lyr = [layers.Dense(2, activation=actfunc) for _ in range(seq_len)]
+        self.out_lyr = layers.Dense(d_model, activation=actfunc)
         self.dropout_out = layers.Dropout(dpo_rate)
 
-    def call(self, x, ex, enc_outputs, training, concated=False, look_ahead_mask=None, padding_mask=None):
+    def call(self, x, ex, enc_outputs, training, concated=True, look_ahead_mask=None, padding_mask=None):
         attention_weights = {}
 
         ex_enc = self.ex_encoder(ex)
         pos_enc = spatial_posenc(0, 0, self.d_model)
 
-        x = self.li_conv(x)
-        x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
-        x = x + ex_enc + pos_enc
+        x_conved = self.li_conv(x)
+        x_conved *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+        x_coded = x_conved + ex_enc + pos_enc
 
-        x = self.dropout(x, training=training)
+        x_coded = self.dropout(x_coded, training=training)
 
-        outputs = [x for _ in range(self.seq_len)]
+        outputs = [None for _ in range(self.seq_len)]
 
         for i in range(self.num_layers):
             for l in range(self.seq_len):
-                outputs[l], block1, block2 = self.decs[i][l](outputs[l], enc_outputs[l], training, look_ahead_mask, padding_mask)
+                inp = x_coded if i == 0 else outputs[l]
+                outputs[l], block1, block2 = self.decs[i][l](inp, enc_outputs[l], training, look_ahead_mask, padding_mask)
                 attention_weights['decoder{}_layer{}_block1'.format(l + 1, i + 1)] = block1
                 attention_weights['decoder{}_layer{}_block2'.format(l + 1, i + 1)] = block2
-                if i == self.num_layers - 1:
-                    outputs[l] = self.out_lyr[l](outputs[l], training, dpo_out=False)
 
         if concated:
-            outputs = self.dropout_out(tf.concat(outputs, axis=-1))
+            output = tf.concat(outputs, axis=-1)
+            output = self.out_lyr(output)
+            output = self.dropout_out(output, training=training)
+        else:
+            output = outputs
 
-        return outputs, attention_weights
+        return output, attention_weights
 
 
 class STSAN_XL(Model):
@@ -322,13 +316,14 @@ class STSAN_XL(Model):
         self.decoder = Decoder(num_layers, d_model, num_heads, dff, seq_len, dpo_rate)
 
         self.final_lyr = layers.Dense(2, activation='tanh')
-        self.dropout = layers.Dropout(dpo_rate)
 
     def call(self, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, training, look_ahead_mask=None):
-        enc_outputs = self.encoder(inp_ft[..., :2], inp_ex, cors, inp_ft[..., 2:], training)
+        inp_t, t_gate = tf.split(inp_ft, [2, 4], axis=-1)
+
+        enc_outputs = self.encoder(inp_t, inp_ex, cors, t_gate, training)
 
         dec_outputs, attention_weights = self.decoder(dec_inp_f, dec_inp_ex, enc_outputs, training, True, look_ahead_mask=look_ahead_mask)
 
-        final_output = self.final_lyr(self.dropout(dec_outputs, training=training))
+        final_output = self.final_lyr(dec_outputs)
 
         return final_output, attention_weights

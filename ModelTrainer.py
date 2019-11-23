@@ -2,7 +2,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import tensorflow as tf
 
-testing = True
+testing = 100
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
@@ -72,7 +72,7 @@ class ModelTrainer:
 
         with strategy.scope():
 
-            def tf_summary_scalar(name, value, step):
+            def tf_summary_scalar(summary_writer, name, value, step):
                 with summary_writer.as_default():
                     tf.summary.scalar(name, value, step=step)
 
@@ -189,26 +189,26 @@ class ModelTrainer:
 
             def test_step(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y, final_test=False):
                 tar_inp = dec_inp_f[:, :1, :]
-                for i in range(1, tf.shape(y)[1] + 1):
-                    tar_inp_ex = dec_inp_ex[:, :i, :]
+                for i in range(args.n_pred):
+                    tar_inp_ex = dec_inp_ex[:, :i + 1, :]
                     predictions, _ = stsan_xl(inp_ft, inp_ex, tar_inp, tar_inp_ex, cors, training=False)
 
                     """ here we filter out all nodes where their real flows are less than 10 """
-                    real_in = y[:, i - 1, 0]
-                    real_out = y[:, i - 1, 1]
-                    pred_in = predictions[:, -1:, 0]
-                    pred_out = predictions[:, -1:, 1]
+                    real_in = y[:, i, 0]
+                    real_out = y[:, i, 1]
+                    pred_in = predictions[:, -1, 0]
+                    pred_out = predictions[:, -1, 1]
                     mask_in = tf.where(tf.math.greater(real_in, self.test_threshold))
                     mask_out = tf.where(tf.math.greater(real_out, self.test_threshold))
                     masked_real_in = tf.gather_nd(real_in, mask_in)
                     masked_real_out = tf.gather_nd(real_out, mask_out)
                     masked_pred_in = tf.gather_nd(pred_in, mask_in)
                     masked_pred_out = tf.gather_nd(pred_out, mask_out)
-                    in_rmse_test[i - 1](masked_real_in, masked_pred_in)
-                    out_rmse_test[i - 1](masked_real_out, masked_pred_out)
+                    in_rmse_test[i](masked_real_in, masked_pred_in)
+                    out_rmse_test[i](masked_real_out, masked_pred_out)
                     if final_test:
-                        in_mae_test[i - 1](masked_real_in, masked_pred_in)
-                        out_mae_test[i - 1](masked_real_out, masked_pred_out)
+                        in_mae_test[i](masked_real_in, masked_pred_in)
+                        out_mae_test[i](masked_real_out, masked_pred_out)
 
                     tar_inp = tf.concat([tar_inp, predictions[:, -1:, :]], axis=-2)
 
@@ -264,7 +264,7 @@ class ModelTrainer:
                     total_loss = distributed_train_step(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y)
 
                     step_cnt += 1
-                    tf_summary_scalar("total_loss", total_loss, step_cnt)
+                    tf_summary_scalar(summary_writer, "total_loss", total_loss, step_cnt)
 
                     if (batch + 1) % 100 == 0 and args.verbose_train:
                         print('Epoch {} Batch {} in_rmse {:.6f} out_rmse'.format(
@@ -274,8 +274,8 @@ class ModelTrainer:
                     template = 'Epoch {} in_RMSE {:.6f} out_RMSE {:.6f}\n'.format(
                         epoch + 1, in_rmse_train.result(), out_rmse_train.result())
                     write_result(result_output_path, template)
-                    tf_summary_scalar("in_rmse_train", in_rmse_train.result(), epoch + 1)
-                    tf_summary_scalar("out_rmse_train", out_rmse_train.result(), epoch + 1)
+                    tf_summary_scalar(summary_writer, "in_rmse_train", in_rmse_train.result(), epoch + 1)
+                    tf_summary_scalar(summary_writer, "out_rmse_train", out_rmse_train.result(), epoch + 1)
 
                 eval_rmse = (in_rmse_train.result() + out_rmse_train.result()) / 2
 
@@ -286,8 +286,8 @@ class ModelTrainer:
                     print(
                         "Validation Result (Min-Max Norm, filtering out trivial grids): ")
                     evaluate(val_dataset, epoch, final_test=False)
-                    tf_summary_scalar("in_rmse_test", in_rmse_test[0].result(), epoch + 1)
-                    tf_summary_scalar("out_rmse_test", out_rmse_test[0].result(), epoch + 1)
+                    tf_summary_scalar(summary_writer, "in_rmse_test", in_rmse_test[0].result(), epoch + 1)
+                    tf_summary_scalar(summary_writer, "out_rmse_test", out_rmse_test[0].result(), epoch + 1)
                     es_flag = es_helper.check(in_rmse_test[0].result() + out_rmse_test[0].result(), epoch)
 
                 ckpt_save_path = ckpt_manager.save()
@@ -303,7 +303,7 @@ class ModelTrainer:
                     train_dataset, val_dataset = \
                         self.dataset_generator.load_dataset('train', args.load_saved_data, strategy)
 
-                tf_summary_scalar("epoch_time", time.time() - start, epoch + 1)
+                tf_summary_scalar(summary_writer, "epoch_time", time.time() - start, epoch + 1)
                 print('Time taken for 1 epoch: {} secs\n'.format(time.time() - start))
 
                 if testing:
