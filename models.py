@@ -134,23 +134,6 @@ def ex_encoding(d_model):
     ])
 
 
-class GlobalDense(layers.Layer):
-    def __init__(self, d_model, dpo_rate=0.1):
-        super(GlobalDense, self).__init__(name='GlobalDense')
-        self.dense1 = layers.Dense(d_model, activation=actfunc)
-        self.dense2 = layers.Dense(d_model)
-        self.dropout = layers.Dropout(dpo_rate)
-
-    def call(self, x, inp_g, training):
-        inp_g = tf.concat(inp_g, axis=-1)
-        inp_g = self.dense1(inp_g)
-        x_out = tf.concat([x, inp_g], axis=-1)
-        output = self.dense2(x_out)
-        output = self.dropout(output, training)
-
-        return output
-
-
 class EncoderLayer(layers.Layer):
     def __init__(self, d_model, num_heads, dff, dpo_rate=0.1):
         super(EncoderLayer, self).__init__()
