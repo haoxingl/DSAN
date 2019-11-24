@@ -99,8 +99,8 @@ def write_result(path, str, print_str=True):
 
 
 def create_look_ahead_mask(size):
-  mask = 1 - tf.linalg.band_part(tf.ones((size, size)), -1, 0)
-  return mask[tf.newaxis, tf.newaxis, ...]  # (seq_len, seq_len)
+    mask = 1 - tf.linalg.band_part(tf.ones((size, size)), -1, 0)
+    return mask[tf.newaxis, tf.newaxis, ...]  # (seq_len, seq_len)
 
 
 if __name__ == "__main__":

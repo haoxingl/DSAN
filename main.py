@@ -31,7 +31,7 @@ parser.add_argument('--remove_old_files', default=True)
 parser.add_argument('--MAX_EPOCH', default=500)
 parser.add_argument('--BATCH_SIZE', default=16)
 parser.add_argument('--es_patience', default=10)
-parser.add_argument('--es_threshold', default=0.015)
+parser.add_argument('--es_threshold', default=0.01)
 parser.add_argument('--warmup_steps', default=4000)
 parser.add_argument('--verbose_train', default=1)
 
@@ -39,8 +39,8 @@ parser.add_argument('--verbose_train', default=1)
 n_hist_week = 1
 n_hist_day = 3
 n_hist_int = 1
-n_curr_int = 5
-n_int_before = 1
+n_curr_int = 3
+n_int_before = 0
 seq_len = (n_hist_week + n_hist_day) * n_hist_int + n_curr_int
 parser.add_argument('--load_saved_data', default=False)
 parser.add_argument('--n_hist_week', default=n_hist_week, help='num of previous weeks to consider')
@@ -93,6 +93,8 @@ if __name__ == "__main__":
             except:
                 pass
             try:
+                if not os.path.exists('./results/stsan_xl'):
+                    os.makedirs('./results/stsan_xl')
                 os.remove('./results/stsan_xl/{}.txt'.format(model_index))
             except:
                 pass

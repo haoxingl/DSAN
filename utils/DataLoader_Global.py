@@ -199,8 +199,7 @@ class DataLoader_Global:
                         y_t.append(tar_t)
 
                 if self.testing and t + 1 - time_start >= self.testing:
-                        break
-
+                    break
 
             """ convert the inputs arrays to matrices """
             inp_ft = np.array(inp_ft, dtype=np.float32)
@@ -230,4 +229,5 @@ class DataLoader_Global:
 
 if __name__ == "__main__":
     dl = DataLoader_Global(64, testing=True)
-    inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y = dl.generate_data(datatype='train', load_saved_data=False)
+    inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y = dl.generate_data(datatype='train',
+                                                                                      load_saved_data=False)

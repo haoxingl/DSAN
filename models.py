@@ -40,7 +40,7 @@ class GatedConv(layers.Layer):
         self.sig_act = sig_act
 
         self.convs = [[layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same')
-                               for _ in range(num_layers)] for _ in range(seq_len)]
+                       for _ in range(num_layers)] for _ in range(seq_len)]
         self.dpo_layers = [layers.Dropout(dpo_rate) for _ in range(seq_len)]
 
         if sig_act:
@@ -223,7 +223,8 @@ class Encoder(layers.Layer):
         self.gated_conv = GatedConv(cnn_layers, cnn_filters, seq_len, dpo_rate)
         self.gated_conv_t = GatedConv(cnn_layers, cnn_filters, seq_len, dpo_rate, sig_act=True)
 
-        self.encs = [[EncoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(seq_len)] for _ in range(num_layers)]
+        self.encs = [[EncoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(seq_len)] for _ in
+                     range(num_layers)]
         self.dense_g = [[GlobalDense(d_global, dpo_rate) for _ in range(seq_len)] for _ in range(num_layers)]
 
     def call(self, x, ex, cors, t_gate, training, mask=None):
@@ -266,13 +267,10 @@ class Decoder(layers.Layer):
         self.ex_encoder = ex_encoding(d_model)
         self.dropout = layers.Dropout(dpo_rate)
 
-        self.li_conv = Sequential([
-            layers.Dense(d_model, activation=actfunc),
-            layers.Dense(d_model, activation=actfunc),
-            layers.Dense(d_model, activation=actfunc)
-        ])
+        self.li_conv = Sequential([layers.Dense(d_model, activation=actfunc) for _ in range(3)])
 
-        self.decs = [[DecoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(seq_len)] for _ in range(num_layers)]
+        self.decs = [[DecoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(seq_len)] for _ in
+                     range(num_layers)]
         self.out_lyr = layers.Dense(d_model, activation=actfunc)
         self.dropout_out = layers.Dropout(dpo_rate)
 
@@ -293,7 +291,8 @@ class Decoder(layers.Layer):
         for i in range(self.num_layers):
             for l in range(self.seq_len):
                 inp = x_coded if i == 0 else outputs[l]
-                outputs[l], block1, block2 = self.decs[i][l](inp, enc_outputs[l], training, look_ahead_mask, padding_mask)
+                outputs[l], block1, block2 = self.decs[i][l](inp, enc_outputs[l], training, look_ahead_mask,
+                                                             padding_mask)
                 attention_weights['decoder{}_layer{}_block1'.format(l + 1, i + 1)] = block1
                 attention_weights['decoder{}_layer{}_block2'.format(l + 1, i + 1)] = block2
 
@@ -311,7 +310,8 @@ class STSAN_XL(Model):
     def __init__(self, num_layers, d_model, d_global, num_heads, dff, cnn_layers, cnn_filters, seq_len, dpo_rate=0.1):
         super(STSAN_XL, self).__init__()
 
-        self.encoder = Encoder(num_layers, d_model, d_global, num_heads, dff, cnn_layers, cnn_filters, seq_len, dpo_rate)
+        self.encoder = Encoder(num_layers, d_model, d_global, num_heads, dff, cnn_layers, cnn_filters, seq_len,
+                               dpo_rate)
 
         self.decoder = Decoder(num_layers, d_model, num_heads, dff, seq_len, dpo_rate)
 
@@ -322,7 +322,8 @@ class STSAN_XL(Model):
 
         enc_outputs = self.encoder(inp_t, inp_ex, cors, t_gate, training)
 
-        dec_outputs, attention_weights = self.decoder(dec_inp_f, dec_inp_ex, enc_outputs, training, True, look_ahead_mask=look_ahead_mask)
+        dec_outputs, attention_weights = \
+            self.decoder(dec_inp_f, dec_inp_ex, enc_outputs, training, True, look_ahead_mask=look_ahead_mask)
 
         final_output = self.final_lyr(dec_outputs)
 

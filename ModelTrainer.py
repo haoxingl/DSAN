@@ -2,7 +2,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import tensorflow as tf
 
-testing = 100
+testing = False
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
@@ -83,30 +83,29 @@ class ModelTrainer:
                     for i in range(args.n_pred):
                         template_rmse += ' {}. {:.2f}({:.6f})/{:.2f}({:.6f})'.format(
                             i + 1,
-                            in_rmse_test.result() * self.f_max,
-                            in_rmse_test.result(),
-                            out_rmse_test.result() * self.f_max,
-                            out_rmse_test.result()
+                            in_rmse_test[i].result() * self.f_max,
+                            in_rmse_test[i].result(),
+                            out_rmse_test[i].result() * self.f_max,
+                            out_rmse_test[i].result()
                         )
                         template_mae += ' {}. {:.2f}({:.6f})/{:.2f}({:.6f})'.format(
                             i + 1,
-                            in_mae_test.result() * self.f_max,
-                            in_mae_test.result(),
-                            out_mae_test.result() * self.f_max,
-                            out_mae_test.result()
+                            in_mae_test[i].result() * self.f_max,
+                            in_mae_test[i].result(),
+                            out_mae_test[i].result() * self.f_max,
+                            out_mae_test[i].result()
                         )
                     template = "Final:\n" + template_rmse + "\n" + template_mae + "\n\n"
                     write_result(result_output_path, template)
                 else:
                     template = "Epoch {} RMSE(in/out):".format(epoch + 1)
                     for i in range(args.n_pred):
-                        template += " {}. {:.6f}/{:.6f}".format(
-                            i + 1, in_rmse_test[i].result(), out_rmse_test[i].result())
+                        template += " {}. {:.6f}/{:.6f}".format\
+                            (i + 1, in_rmse_test[i].result(), out_rmse_test[i].result())
                     template += "\n\n"
                     write_result(result_output_path,
                                  'Validation Result (Min-Max Norm, filtering out trivial grids):\n' + template, False)
                     print(template)
-
 
             loss_object = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
 
@@ -168,18 +167,6 @@ class ModelTrainer:
 
                 return loss
 
-            # train_step_signature = [
-            #     tf.TensorSpec(shape=(None, None, None, None, None), dtype=tf.float32),
-            #     tf.TensorSpec(shape=(None, None, None, None, None), dtype=tf.float32),
-            #     tf.TensorSpec(shape=(None, None, None), dtype=tf.float32),
-            #     tf.TensorSpec(shape=(None, None, None, None, None), dtype=tf.float32),
-            #     tf.TensorSpec(shape=(None, None, None, None, None), dtype=tf.float32),
-            #     tf.TensorSpec(shape=(None, None, None), dtype=tf.float32),
-            #     tf.TensorSpec(shape=(None, None), dtype=tf.float32),
-            #     tf.TensorSpec(shape=(None, None, None, None), dtype=tf.float32)
-            # ]
-
-            # @tf.function(input_signature=train_step_signature)
             @tf.function
             def distributed_train_step(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y):
                 per_replica_losses = strategy.experimental_run_v2 \
@@ -218,11 +205,11 @@ class ModelTrainer:
                     inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y, final_test,))
 
             def evaluate(eval_dataset, epoch, verbose=1, final_test=False):
-                in_rmse_test.reset_states()
-                out_rmse_test.reset_states()
+                for i in range(args.n_pred):
+                    in_rmse_test[i].reset_states()
+                    out_rmse_test[i].reset_states()
 
                 for (batch, (inp, tar)) in enumerate(eval_dataset):
-
                     inp_ft = inp["inp_ft"]
                     inp_ex = inp["inp_ex"]
                     dec_inp_f = inp["dec_inp_f"]
@@ -267,12 +254,12 @@ class ModelTrainer:
                     tf_summary_scalar(summary_writer, "total_loss", total_loss, step_cnt)
 
                     if (batch + 1) % 100 == 0 and args.verbose_train:
-                        print('Epoch {} Batch {} in_rmse {:.6f} out_rmse'.format(
+                        print('Epoch {} Batch {} in_rmse {:.6f} out_rmse {:.6f}'.format(
                             epoch + 1, batch + 1, in_rmse_train.result(), out_rmse_train.result()))
 
                 if args.verbose_train:
-                    template = 'Epoch {} in_RMSE {:.6f} out_RMSE {:.6f}\n'.format(
-                        epoch + 1, in_rmse_train.result(), out_rmse_train.result())
+                    template = 'Epoch {} in_RMSE {:.6f} out_RMSE {:.6f}\n'.format\
+                        (epoch + 1, in_rmse_train.result(), out_rmse_train.result())
                     write_result(result_output_path, template)
                     tf_summary_scalar(summary_writer, "in_rmse_train", in_rmse_train.result(), epoch + 1)
                     tf_summary_scalar(summary_writer, "out_rmse_train", out_rmse_train.result(), epoch + 1)
@@ -282,9 +269,8 @@ class ModelTrainer:
                 if check_flag == False and es_helper.refresh_status(eval_rmse):
                     check_flag = True
 
-                if check_flag:
-                    print(
-                        "Validation Result (Min-Max Norm, filtering out trivial grids): ")
+                if testing or check_flag:
+                    print("Validation Result (Min-Max Norm, filtering out trivial grids): ")
                     evaluate(val_dataset, epoch, final_test=False)
                     tf_summary_scalar(summary_writer, "in_rmse_test", in_rmse_test[0].result(), epoch + 1)
                     tf_summary_scalar(summary_writer, "out_rmse_test", out_rmse_test[0].result(), epoch + 1)
@@ -299,9 +285,9 @@ class ModelTrainer:
                     print('Checkpoint restored!! At epoch {}\n'.format(int(epoch - args.es_patience)))
                     break
 
-                if reshuffle_helper.check(epoch):
+                if testing or reshuffle_helper.check(epoch):
                     train_dataset, val_dataset = \
-                        self.dataset_generator.load_dataset('train', args.load_saved_data, strategy)
+                        self.dataset_generator.build_dataset('train', args.load_saved_data, strategy)
 
                 tf_summary_scalar(summary_writer, "epoch_time", time.time() - start, epoch + 1)
                 print('Time taken for 1 epoch: {} secs\n'.format(time.time() - start))
