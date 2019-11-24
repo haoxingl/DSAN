@@ -225,7 +225,8 @@ class Encoder(layers.Layer):
 
         self.encs = [[EncoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(seq_len)] for _ in
                      range(num_layers)]
-        self.dense_g = [[GlobalDense(d_global, dpo_rate) for _ in range(seq_len)] for _ in range(num_layers)]
+        self.dense_g = [layers.Dense(d_global * seq_len) for _ in range(num_layers)]
+        self.dpo_g = [layers.Dropout(dpo_rate) for _ in range(num_layers)]
 
     def call(self, x, ex, cors, t_gate, training, mask=None):
         data_shape = tf.shape(x)
@@ -247,9 +248,10 @@ class Encoder(layers.Layer):
             mem[i] = tf.squeeze(tensor, axis=1)
 
         for i in range(self.num_layers):
+            mem_g = tf.stop_gradient(tf.concat(mem, axis=-1))
+            inp_g = tf.split(self.dpo_g[i](self.dense_g[i](mem_g), training), self.seq_len, axis=-1)
             for l in range(self.seq_len):
-                inp_g = [tf.stop_gradient(mem[k]) for k in range(self.seq_len) if k != l]
-                inp = self.dense_g[i][l](mem[l], inp_g, training)
+                inp = tf.concat([mem[l], inp_g[l]], axis=-1)
                 outputs[l] = self.encs[i][l](inp, training, mask)
             mem = outputs
 

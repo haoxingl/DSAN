@@ -2,8 +2,6 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import tensorflow as tf
 
-testing = False
-
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
     try:
@@ -46,7 +44,7 @@ class ModelTrainer:
                                                   args.n_curr_int,
                                                   args.n_int_before,
                                                   args.n_pred,
-                                                  testing)
+                                                  args.test_model)
 
         if args.dataset == 'taxi':
             self.t_max = parameters_nyctaxi.t_train_max
@@ -65,6 +63,7 @@ class ModelTrainer:
 
     def train(self):
         args = self.args
+        test_model = args.test_model
         result_output_path = "results/stsan_xl/{}.txt".format(self.model_index)
 
         train_dataset, val_dataset = self.dataset_generator.build_dataset('train', args.load_saved_data, strategy)
@@ -269,7 +268,7 @@ class ModelTrainer:
                 if check_flag == False and es_helper.refresh_status(eval_rmse):
                     check_flag = True
 
-                if testing or check_flag:
+                if test_model or check_flag:
                     print("Validation Result (Min-Max Norm, filtering out trivial grids): ")
                     evaluate(val_dataset, epoch, final_test=False)
                     tf_summary_scalar(summary_writer, "in_rmse_test", in_rmse_test[0].result(), epoch + 1)
@@ -285,14 +284,14 @@ class ModelTrainer:
                     print('Checkpoint restored!! At epoch {}\n'.format(int(epoch - args.es_patience)))
                     break
 
-                if testing or reshuffle_helper.check(epoch):
+                if test_model or reshuffle_helper.check(epoch):
                     train_dataset, val_dataset = \
                         self.dataset_generator.build_dataset('train', args.load_saved_data, strategy)
 
                 tf_summary_scalar(summary_writer, "epoch_time", time.time() - start, epoch + 1)
                 print('Time taken for 1 epoch: {} secs\n'.format(time.time() - start))
 
-                if testing:
+                if test_model:
                     break
 
             write_result(result_output_path, "Start testing (filtering out trivial grids):\n")
