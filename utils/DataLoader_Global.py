@@ -5,12 +5,12 @@ from utils.CordinateGenerator import CordinateGenerator
 
 
 class DataLoader_Global:
-    def __init__(self, d_model, dataset='taxi', testing=False):
+    def __init__(self, d_model, dataset='taxi', test_model=False):
         assert dataset == 'taxi' or 'bike'
         self.dataset = dataset
         self.pmt = param_taxi if dataset == 'taxi' else param_bike
         self.cor_gen = CordinateGenerator(self.pmt.len_r, self.pmt.len_c, d_model)
-        self.testing = testing
+        self.test_model = test_model
 
     def load_data_f(self, datatype='train'):
         if datatype == 'train':
@@ -198,7 +198,7 @@ class DataLoader_Global:
 
                         y_t.append(tar_t)
 
-                if self.testing and t + 1 - time_start >= self.testing:
+                if self.test_model and t + 1 - time_start >= self.test_model:
                     break
 
             """ convert the inputs arrays to matrices """
@@ -228,6 +228,6 @@ class DataLoader_Global:
 
 
 if __name__ == "__main__":
-    dl = DataLoader_Global(64, testing=True)
+    dl = DataLoader_Global(64, test_model=True)
     inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y = dl.generate_data(datatype='train',
                                                                                       load_saved_data=False)

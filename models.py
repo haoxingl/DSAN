@@ -49,8 +49,9 @@ class GatedConv(layers.Layer):
     def call(self, inp, training):
         outputs = []
 
+        inputs = tf.split(inp, self.seq_len, axis=1)
         for i in range(self.seq_len):
-            output = inp[:, i, ...]
+            output = inputs[i]
             for j in range(self.num_layers):
                 output = self.convs[i][j](output)
             output = self.dpo_layers[i](output, training=training)
@@ -138,6 +139,8 @@ class EncoderLayer(layers.Layer):
     def __init__(self, d_model, num_heads, dff, dpo_rate=0.1):
         super(EncoderLayer, self).__init__()
 
+        self.d_model = d_model
+
         self.mha = MultiHeadAttention(d_model, num_heads)
         self.ffn = point_wise_feed_forward_network(d_model, dff)
 
@@ -147,10 +150,10 @@ class EncoderLayer(layers.Layer):
         self.dropout1 = layers.Dropout(dpo_rate)
         self.dropout2 = layers.Dropout(dpo_rate)
 
-    def call(self, x, training, mask):
+    def call(self, x, x_0, training, mask):
         attn_output, _ = self.mha(x, x, x, mask)
         attn_output = self.dropout1(attn_output, training=training)
-        out1 = self.layernorm1(x + attn_output)
+        out1 = self.layernorm1(x_0 + attn_output)
 
         ffn_output = self.ffn(out1)
         ffn_output = self.dropout2(ffn_output, training=training)
@@ -235,7 +238,7 @@ class Encoder(layers.Layer):
             inp_g = tf.split(self.dpo_g[i](self.dense_g[i](mem_g), training), self.seq_len, axis=-1)
             for l in range(self.seq_len):
                 inp = tf.concat([mem[l], inp_g[l]], axis=-1)
-                outputs[l] = self.encs[i][l](inp, training, mask)
+                outputs[l] = self.encs[i][l](inp, mem[l], training, mask)
             mem = outputs
 
         return outputs
