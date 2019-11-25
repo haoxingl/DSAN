@@ -51,7 +51,7 @@ class GatedConv(layers.Layer):
 
         inputs = tf.split(inp, self.seq_len, axis=1)
         for i in range(self.seq_len):
-            output = inputs[i]
+            output = tf.squeeze(inputs[i], axis=1)
             for j in range(self.num_layers):
                 output = self.convs[i][j](output)
             output = self.dpo_layers[i](output, training=training)
