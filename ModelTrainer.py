@@ -274,6 +274,7 @@ class ModelTrainer:
                     tf_summary_scalar(summary_writer, "in_rmse_test", in_rmse_test[0].result(), epoch + 1)
                     tf_summary_scalar(summary_writer, "out_rmse_test", out_rmse_test[0].result(), epoch + 1)
                     es_flag = es_helper.check(in_rmse_test[0].result() + out_rmse_test[0].result(), epoch)
+                    tf_summary_scalar(summary_writer, "best_epoch", es_helper.get_bestepoch(), epoch + 1)
 
                 ckpt_save_path = ckpt_manager.save()
                 print('Saving checkpoint for epoch {} at {}\n'.format(epoch + 1, ckpt_save_path))
@@ -296,3 +297,7 @@ class ModelTrainer:
 
             write_result(result_output_path, "Start testing (filtering out trivial grids):\n")
             evaluate(test_dataset, epoch, final_test=True)
+            tf_summary_scalar(summary_writer, "final_in_rmse", in_rmse_test[0].result(), 1,
+                              description=str(in_rmse_test[0].result() * self.f_max))
+            tf_summary_scalar(summary_writer, "final_out_rmse", out_rmse_test[0].result(), 1,
+                              description=str(out_rmse_test[0].result() * self.f_max))
