@@ -94,7 +94,7 @@ class MultiHeadAttention(layers.Layer):
         self.wk = layers.Dense(d_model * seq_len)
         self.wv = layers.Dense(d_model * seq_len)
 
-        self.dense = [layers.Dense(d_model) for _ in range(seq_len)]
+        self.dense = layers.Dense(d_model * seq_len)
 
     def split_heads(self, x, batch_size):
         x = tf.reshape(x, (batch_size, -1, self.num_heads, self.depth))
@@ -129,6 +129,7 @@ class MultiHeadAttention(layers.Layer):
             weights.append(attention_weights)
 
         output = tf.concat(outputs, axis=-1)
+        output = self.dense(output)
 
         return output, weights
 
