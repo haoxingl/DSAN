@@ -39,8 +39,8 @@ parser.add_argument('--warmup_steps', default=4000)
 parser.add_argument('--verbose_train', default=1)
 
 """ Data hyperparameters """
-n_hist_week = 0
-n_hist_day = 7
+n_hist_week = 1
+n_hist_day = 3
 n_hist_int = 3
 n_curr_int = 1
 n_int_before = 0
