@@ -80,20 +80,21 @@ def scaled_dot_product_attention(q, k, v, mask):
 
 
 class MultiHeadAttention(layers.Layer):
-    def __init__(self, d_model, num_heads):
+    def __init__(self, d_model, num_heads, seq_len):
         super(MultiHeadAttention, self).__init__()
         self.num_heads = num_heads
         self.d_model = d_model
+        self.seq_len = seq_len
 
         assert d_model % self.num_heads == 0
 
-        self.depth = d_model // self.num_heads
+        self.depth = seq_len * d_model // self.num_heads
 
-        self.wq = layers.Dense(d_model)
-        self.wk = layers.Dense(d_model)
-        self.wv = layers.Dense(d_model)
+        self.wq = layers.Dense(d_model * seq_len)
+        self.wk = layers.Dense(d_model * seq_len)
+        self.wv = layers.Dense(d_model * seq_len)
 
-        self.dense = layers.Dense(d_model)
+        self.dense = [layers.Dense(d_model) for _ in range(seq_len)]
 
     def split_heads(self, x, batch_size):
         x = tf.reshape(x, (batch_size, -1, self.num_heads, self.depth))
@@ -103,22 +104,33 @@ class MultiHeadAttention(layers.Layer):
         batch_size = tf.shape(q)[0]
 
         q = self.wq(q)
-        k = self.wk(k)
-        v = self.wv(v)
-
         q = self.split_heads(q, batch_size)
+        q = tf.split(q, self.seq_len, axis=-1)
+
+        k = self.wk(k)
         k = self.split_heads(k, batch_size)
+        k = tf.split(k, self.seq_len, axis=-1)
+
+        v = self.wv(v)
         v = self.split_heads(v, batch_size)
+        v = tf.split(v, self.seq_len, axis=-1)
 
-        scaled_attention, attention_weights = scaled_dot_product_attention(q, k, v, mask)
+        outputs = []
+        weights = []
 
-        scaled_attention = tf.transpose(scaled_attention, perm=[0, 2, 1, 3])
+        for i in range(self.seq_len):
+            scaled_attention, attention_weights = scaled_dot_product_attention(q[i], k[i], v[i], mask)
 
-        concat_attention = tf.reshape(scaled_attention, (batch_size, -1, self.d_model))
+            scaled_attention = tf.transpose(scaled_attention, perm=[0, 2, 1, 3])
 
-        output = self.dense(concat_attention)
+            concat_attention = tf.reshape(scaled_attention, (batch_size, -1, self.d_model))
 
-        return output, attention_weights
+            outputs.append(self.dense[i](concat_attention))
+            weights.append(attention_weights)
+
+        output = tf.concat(outputs, axis=-1)
+
+        return output, weights
 
 
 def point_wise_feed_forward_network(d_model, dff):
@@ -136,13 +148,11 @@ def ex_encoding(d_model):
 
 
 class EncoderLayer(layers.Layer):
-    def __init__(self, d_model, num_heads, dff, dpo_rate=0.1):
+    def __init__(self, d_model, num_heads, dff, seq_len, dpo_rate=0.1):
         super(EncoderLayer, self).__init__()
 
-        self.d_model = d_model
-
-        self.mha = MultiHeadAttention(d_model, num_heads)
-        self.ffn = point_wise_feed_forward_network(d_model, dff)
+        self.mha = MultiHeadAttention(d_model, num_heads, seq_len)
+        self.ffn = point_wise_feed_forward_network(d_model * seq_len, dff * seq_len)
 
         self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
         self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
@@ -150,10 +160,10 @@ class EncoderLayer(layers.Layer):
         self.dropout1 = layers.Dropout(dpo_rate)
         self.dropout2 = layers.Dropout(dpo_rate)
 
-    def call(self, x, x_0, training, mask):
+    def call(self, x, training, mask):
         attn_output, _ = self.mha(x, x, x, mask)
         attn_output = self.dropout1(attn_output, training=training)
-        out1 = self.layernorm1(x_0 + attn_output)
+        out1 = self.layernorm1(x + attn_output)
 
         ffn_output = self.ffn(out1)
         ffn_output = self.dropout2(ffn_output, training=training)
@@ -163,13 +173,13 @@ class EncoderLayer(layers.Layer):
 
 
 class DecoderLayer(layers.Layer):
-    def __init__(self, d_model, num_heads, dff=256, dpo_rate=0.1):
+    def __init__(self, d_model, num_heads, dff, seq_len, dpo_rate=0.1):
         super(DecoderLayer, self).__init__()
 
-        self.mha1 = MultiHeadAttention(d_model, num_heads)
-        self.mha2 = MultiHeadAttention(d_model, num_heads)
+        self.mha1 = MultiHeadAttention(d_model, num_heads, seq_len)
+        self.mha2 = MultiHeadAttention(d_model, num_heads, seq_len)
 
-        self.ffn = point_wise_feed_forward_network(d_model, dff)
+        self.ffn = point_wise_feed_forward_network(d_model * seq_len, dff * seq_len)
 
         self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
         self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
@@ -209,10 +219,7 @@ class Encoder(layers.Layer):
         self.gated_conv = GatedConv(cnn_layers, cnn_filters, seq_len, dpo_rate)
         self.gated_conv_t = GatedConv(cnn_layers, cnn_filters, seq_len, dpo_rate, sig_act=True)
 
-        self.encs = [[EncoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(seq_len)] for _ in
-                     range(num_layers)]
-        self.dense_g = [layers.Dense(d_global * seq_len) for _ in range(num_layers)]
-        self.dpo_g = [layers.Dropout(dpo_rate) for _ in range(num_layers)]
+        self.encs = [EncoderLayer(d_model, num_heads, dff, seq_len, dpo_rate) for _ in range(num_layers)]
 
     def call(self, x, ex, cors, t_gate, training, mask=None):
         data_shape = tf.shape(x)
@@ -228,20 +235,16 @@ class Encoder(layers.Layer):
         enc_inp = self.dropout(enc_inp, training=training)
 
         mem = tf.split(enc_inp, self.seq_len, axis=1)
-        outputs = [None for _ in range(self.seq_len)]
 
         for i, tensor in enumerate(mem):
             mem[i] = tf.squeeze(tensor, axis=1)
 
-        for i in range(self.num_layers):
-            mem_g = tf.stop_gradient(tf.concat(mem, axis=-1))
-            inp_g = tf.split(self.dpo_g[i](self.dense_g[i](mem_g), training), self.seq_len, axis=-1)
-            for l in range(self.seq_len):
-                inp = tf.concat([mem[l], inp_g[l]], axis=-1)
-                outputs[l] = self.encs[i][l](inp, mem[l], training, mask)
-            mem = outputs
+        mem = tf.concat(mem, axis=-1)
 
-        return outputs
+        for i in range(self.num_layers):
+            mem = self.encs[i](mem, training, mask)
+
+        return mem
 
 
 class Decoder(layers.Layer):
@@ -257,8 +260,7 @@ class Decoder(layers.Layer):
 
         self.li_conv = Sequential([layers.Dense(d_model, activation=actfunc) for _ in range(3)])
 
-        self.decs = [[DecoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(seq_len)] for _ in
-                     range(num_layers)]
+        self.decs = [DecoderLayer(d_model, num_heads, dff, seq_len, dpo_rate) for _ in range(num_layers)]
         self.out_lyr = layers.Dense(d_model, activation=actfunc)
         self.dropout_out = layers.Dropout(dpo_rate)
 
@@ -274,22 +276,21 @@ class Decoder(layers.Layer):
 
         x_coded = self.dropout(x_coded, training=training)
 
-        outputs = [None for _ in range(self.seq_len)]
+        mem = [x_coded for _ in range(self.seq_len)]
+        mem = tf.concat(mem, axis=-1)
+        enc_output = tf.concat(enc_outputs, axis=-1)
 
         for i in range(self.num_layers):
-            for l in range(self.seq_len):
-                inp = x_coded if i == 0 else outputs[l]
-                outputs[l], block1, block2 = self.decs[i][l](inp, enc_outputs[l], training, look_ahead_mask,
-                                                             padding_mask)
-                attention_weights['decoder{}_layer{}_block1'.format(l + 1, i + 1)] = block1
-                attention_weights['decoder{}_layer{}_block2'.format(l + 1, i + 1)] = block2
+            mem, block1, block2 = self.decs[i](mem, enc_output, training, look_ahead_mask, padding_mask)
+            attention_weights['decoder_layer{}_block1'.format(i + 1)] = block1
+            attention_weights['decoder_layer{}_block2'.format(i + 1)] = block2
 
         if concated:
-            output = tf.concat(outputs, axis=-1)
+            output = tf.concat(mem, axis=-1)
             output = self.out_lyr(output)
             output = self.dropout_out(output, training=training)
         else:
-            output = outputs
+            output = mem
 
         return output, attention_weights
 
