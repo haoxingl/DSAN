@@ -8,12 +8,12 @@ parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike')
 parser.add_argument('--gpu_ids', default='0, 1, 2, 3, 4, 5, 6, 7', help='indexes of gpus to use')
 parser.add_argument('--model_indexes', default=[3, 4], help='indexes of model to be trained')
-parser.add_argument('--BATCH_SIZE', default=16)
+parser.add_argument('--BATCH_SIZE', default=8)
 parser.add_argument('--remove_old_files', default=True)
 parser.add_argument('--load_saved_data', default=False)
 parser.add_argument('--es_patience', default=10)
 parser.add_argument('--es_threshold', default=0.01)
-parser.add_argument('--test_model', default=100)
+parser.add_argument('--test_model', default=False)
 parser.add_argument('--mixed_precision', default=True)
 
 """ Model hyperparameters """
@@ -40,8 +40,8 @@ parser.add_argument('--warmup_steps', default=4000)
 parser.add_argument('--verbose_train', default=1)
 
 """ Data hyperparameters """
-n_hist_week = 1
-n_hist_day = 3
+n_hist_week = 0
+n_hist_day = 7
 n_hist_int = 3
 n_curr_int = 1
 n_int_before = 0

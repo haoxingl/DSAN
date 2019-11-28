@@ -299,7 +299,5 @@ class ModelTrainer:
 
             write_result(result_output_path, "Start testing (filtering out trivial grids):\n")
             evaluate(test_dataset, epoch, final_test=True)
-            tf_summary_scalar(summary_writer, "final_in_rmse", in_rmse_test[0].result(), 1,
-                              description=str(in_rmse_test[0].result() * self.f_max))
-            tf_summary_scalar(summary_writer, "final_out_rmse", out_rmse_test[0].result(), 1,
-                              description=str(out_rmse_test[0].result() * self.f_max))
+            tf_summary_scalar(summary_writer, "final_in_rmse", in_rmse_test[0].result(), 1)
+            tf_summary_scalar(summary_writer, "final_out_rmse", out_rmse_test[0].result(), 1)
