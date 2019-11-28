@@ -98,13 +98,12 @@ class MultiHeadAttention(layers.Layer):
 
         self.dense = layers.Dense(d_model)
 
-    def split_heads(self, x, shape):
+    def split_heads(self, x):
+        shape = tf.shape(x)
         x = tf.reshape(x, (shape[0], shape[1], shape[2], self.num_heads, self.depth))
         return tf.transpose(x, perm=[0, 1, 3, 2, 4])
 
     def call(self, v, k, q, mask):
-        shape = tf.shape(q)
-
         if self.self_all:
             q, k, v = tf.split(self.wx(q), 3, axis=-1)
         else:
@@ -119,7 +118,9 @@ class MultiHeadAttention(layers.Layer):
 
         scaled_attention = tf.transpose(scaled_attention, perm=[0, 1, 3, 2, 4])
 
-        concat_attention = tf.reshape(scaled_attention, (shape[0], shape[1], shape[2], self.d_model))
+        d_shape = tf.shape(scaled_attention)
+
+        concat_attention = tf.reshape(scaled_attention, (d_shape[0], d_shape[1], d_shape[2], self.d_model))
 
         output = self.dense(concat_attention)
 
@@ -266,6 +267,10 @@ class Decoder(layers.Layer):
             output, block1, block2 = self.decs[i](output, enc_output, training, look_ahead_mask, padding_mask)
             attention_weights['decoder_layer{}_block1'.format(i + 1)] = block1
             attention_weights['decoder_layer{}_block2'.format(i + 1)] = block2
+
+        output = tf.transpose(output, perm=[0, 2, 1, 3])
+        d_shape = tf.shape(output)
+        output = tf.reshape(output, [d_shape[0], d_shape[1], -1])
 
         output = self.out_lyr(output)
         output = self.dropout_out(output, training=training)

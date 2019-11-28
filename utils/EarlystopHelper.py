@@ -6,7 +6,7 @@ class EarlystopHelper:
         self.error_delta = error_delta
         self.epoch_cnt = 0
         self.best_rmse = 2000.0
-        self.best_epoch = None
+        self.best_epoch = -1
         self.last_rmse = None
         self.cnt_2 = 0
         self.check_flag = False
