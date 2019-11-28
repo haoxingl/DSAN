@@ -76,7 +76,7 @@ print(
                 args.n_pred
                 ))
 
-# os.environ['F_ENABLE_AUTO_MIXED_PRECISION'] = '1'
+os.environ['TF_ENABLE_AUTO_MIXED_PRECISION'] = '1'
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_ids
 
