@@ -14,6 +14,7 @@ parser.add_argument('--load_saved_data', default=False)
 parser.add_argument('--es_patience', default=10)
 parser.add_argument('--es_threshold', default=0.01)
 parser.add_argument('--test_model', default=False)
+parser.add_argument('--mixed_precision', default=True)
 
 """ Model hyperparameters """
 parser.add_argument('--num_layers', default=4, help='num of self-attention layers')
@@ -76,7 +77,8 @@ print(
                 args.n_pred
                 ))
 
-os.environ['TF_ENABLE_AUTO_MIXED_PRECISION'] = '1'
+# if args.mixed_precision:
+#     os.environ['TF_ENABLE_AUTO_MIXED_PRECISION'] = '1'
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_ids
 

@@ -123,7 +123,8 @@ class ModelTrainer:
             learning_rate = CustomSchedule(args.d_model, args.warmup_steps)
 
             optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
-            optimizer = tf.keras.experimental.enable_mixed_precision_graph_rewrite
+            if args.mixed_precision:
+                optimizer = tf.keras.experimental.enable_mixed_precision_graph_rewrite
 
             stsan_xl = STSAN_XL(args.num_layers,
                                 args.d_model,
