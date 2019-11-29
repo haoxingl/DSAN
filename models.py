@@ -44,7 +44,7 @@ class GatedConv(layers.Layer):
                        for _ in range(num_layers)] for _ in range(seq_len)]
         self.dpo_layers = [layers.Dropout(dpo_rate) for _ in range(seq_len)]
 
-        self.sigm = [[layers.Activation(sigmoid) for _ in range(num_layers + 1)] for _ in range(seq_len)]
+        self.sigm = [[layers.Activation(sigmoid) for _ in range(num_layers)] for _ in range(seq_len)]
 
     def call(self, inp, inp_t, training):
         outputs = []
@@ -54,11 +54,10 @@ class GatedConv(layers.Layer):
         for i in range(self.seq_len):
             output = tf.squeeze(inputs[i], axis=1)
             output_t = tf.squeeze(inputs_t[i], axis=1)
-            output *= self.sigm[i][0](output_t)
             for j in range(self.num_layers):
                 output = self.convs[i][j](output)
                 output_t = self.convs_t[i][j](output_t)
-                output *= self.sigm[i][j + 1](output_t)
+                output *= self.sigm[i][j](output_t)
             output = self.dpo_layers[i](output, training=training)
             output = tf.expand_dims(output, axis=1)
             outputs.append(output)
