@@ -32,33 +32,38 @@ def spatial_posenc(position_r, position_c, d_model):
 
 
 class GatedConv(layers.Layer):
-    def __init__(self, num_layers, num_filters, seq_len, dpo_rate=0.1, sig_act=False):
+    def __init__(self, num_layers, num_filters, seq_len, dpo_rate=0.1):
         super(GatedConv, self).__init__()
 
         self.seq_len = seq_len  # indicate how many time intervals are included in the historical inputs
         self.num_layers = num_layers
-        self.sig_act = sig_act
 
         self.convs = [[layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same')
                        for _ in range(num_layers)] for _ in range(seq_len)]
+        self.convs_t = [[layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same')
+                       for _ in range(num_layers)] for _ in range(seq_len)]
         self.dpo_layers = [layers.Dropout(dpo_rate) for _ in range(seq_len)]
 
-        if sig_act:
-            self.sigm = layers.Activation(sigmoid)
+        self.sigm = [[layers.Activation(sigmoid) for _ in range(num_layers + 1)] for _ in range(seq_len)]
 
-    def call(self, inp, training):
+    def call(self, inp, inp_t, training):
         outputs = []
 
         inputs = tf.split(inp, self.seq_len, axis=1)
+        inputs_t = tf.split(inp_t, self.seq_len, axis=1)
         for i in range(self.seq_len):
             output = tf.squeeze(inputs[i], axis=1)
+            output_t = tf.squeeze(inputs_t[i], axis=1)
+            output *= self.sigm[i][0](output_t)
             for j in range(self.num_layers):
                 output = self.convs[i][j](output)
+                output_t = self.convs_t[i][j](output_t)
+                output *= self.sigm[i][j + 1](output_t)
             output = self.dpo_layers[i](output, training=training)
             output = tf.expand_dims(output, axis=1)
             outputs.append(output)
 
-        output_final = self.sigm(tf.concat(outputs, axis=1)) if self.sig_act else tf.concat(outputs, axis=1)
+        output_final = tf.concat(outputs, axis=1)
 
         return output_final
 
@@ -220,7 +225,9 @@ class Encoder(layers.Layer):
         ex_enc = tf.expand_dims(self.ex_encoder(ex), axis=2)
         pos_enc = tf.expand_dims(cors, axis=1)
 
-        x_gated = self.gated_conv(x, training)
+        inp, inp_t = tf.split(x, [2, 4], axis=-1)
+
+        x_gated = self.gated_conv(inp, inp_t, training)
         x_gated *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
         x_flat = tf.reshape(x_gated, [shape[0], shape[1], -1, self.d_model])
         enc_inp = x_flat + ex_enc + pos_enc

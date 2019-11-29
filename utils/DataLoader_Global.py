@@ -44,7 +44,7 @@ class DataLoader_Global:
         assert datatype == 'train' or datatype == 'test'
 
         """ loading saved data """
-        if load_saved_data:
+        if load_saved_data and not self.test_model:
             print('Loading {} data from .npzs...'.format(datatype))
             inp_ft = np.load("data/inp_ft_{}_{}.npz".format(self.dataset, datatype))['data']
             inp_ex = np.load("data/inp_ex_{}_{}.npz".format(self.dataset, datatype))['data']
@@ -215,14 +215,15 @@ class DataLoader_Global:
             y_t = np.array(y_t, dtype=np.float32)
 
             """ save the matrices """
-            np.savez_compressed("data/inp_ft_{}_{}.npz".format(self.dataset, datatype), data=inp_ft)
-            np.savez_compressed("data/inp_ex_{}_{}.npz".format(self.dataset, datatype), data=inp_ex)
-            np.savez_compressed("data/dec_inp_f_{}_{}.npz".format(self.dataset, datatype), data=dec_inp_f)
-            np.savez_compressed("data/dec_inp_t_{}_{}.npz".format(self.dataset, datatype), data=dec_inp_t)
-            np.savez_compressed("data/dec_inp_ex_{}_{}.npz".format(self.dataset, datatype), data=dec_inp_ex)
-            np.savez_compressed("data/cors_{}_{}.npz".format(self.dataset, datatype), data=cors)
-            np.savez_compressed("data/y_t_{}_{}.npz".format(self.dataset, datatype), data=y_t)
-            np.savez_compressed("data/y_{}_{}.npz".format(self.dataset, datatype), data=y)
+            if not self.test_model:
+                np.savez_compressed("data/inp_ft_{}_{}.npz".format(self.dataset, datatype), data=inp_ft)
+                np.savez_compressed("data/inp_ex_{}_{}.npz".format(self.dataset, datatype), data=inp_ex)
+                np.savez_compressed("data/dec_inp_f_{}_{}.npz".format(self.dataset, datatype), data=dec_inp_f)
+                np.savez_compressed("data/dec_inp_t_{}_{}.npz".format(self.dataset, datatype), data=dec_inp_t)
+                np.savez_compressed("data/dec_inp_ex_{}_{}.npz".format(self.dataset, datatype), data=dec_inp_ex)
+                np.savez_compressed("data/cors_{}_{}.npz".format(self.dataset, datatype), data=cors)
+                np.savez_compressed("data/y_t_{}_{}.npz".format(self.dataset, datatype), data=y_t)
+                np.savez_compressed("data/y_{}_{}.npz".format(self.dataset, datatype), data=y)
 
             return inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y
 
