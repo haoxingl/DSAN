@@ -194,6 +194,32 @@ class DecoderLayer(layers.Layer):
         return out3, attn_weights_block1, attn_weights_block2
 
 
+class DecoderLayer_NLAM(layers.Layer):
+    def __init__(self, d_model, num_heads, dff, dpo_rate=0.1):
+        super(DecoderLayer_NLAM, self).__init__()
+
+        self.mha = MultiHeadAttention(d_model, num_heads, self_all=False)
+
+        self.ffn = point_wise_feed_forward_network(d_model, dff)
+
+        self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
+        self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
+
+        self.dropout1 = layers.Dropout(dpo_rate)
+        self.dropout2 = layers.Dropout(dpo_rate)
+
+    def call(self, x, enc_output_x, training, padding_mask):
+        attn1, attn_weights_block = self.mha(enc_output_x, enc_output_x, x, padding_mask)
+        attn1 = self.dropout1(attn1, training=training)
+        out1 = self.layernorm1(attn1 + x)
+
+        ffn_output = self.ffn(out1)
+        ffn_output = self.dropout2(ffn_output, training=training)
+        out2 = self.layernorm2(out1 + ffn_output)
+
+        return out2, attn_weights_block
+
+
 class Encoder(layers.Layer):
     def __init__(self, num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters, seq_len, dpo_rate=0.1):
         super(Encoder, self).__init__()
@@ -217,7 +243,7 @@ class Encoder(layers.Layer):
 
         # inp, inp_t = tf.split(x, [2, 4], axis=-1)
 
-        x_gated = self.gated_conv(inp, training)
+        x_gated = self.gated_conv(x, training)
         x_gated *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
         x_flat = tf.reshape(x_gated, [shape[0], shape[1], -1, self.d_model])
         enc_inp = x_flat + ex_enc + pos_enc
@@ -243,8 +269,8 @@ class Decoder(layers.Layer):
 
         self.li_conv = Sequential([layers.Dense(d_model, activation=actfunc) for _ in range(3)])
 
-        self.decs = [DecoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(num_layers)]
-        self.out_lyr = Sequential([layers.Dense(dff, activation=actfunc), layers.Dense(d_model, activation=actfunc)])
+        self.decs_s = [DecoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(num_layers)]
+        self.decs_t = [DecoderLayer_NLAM(d_model, num_heads, dff, dpo_rate) for _ in range(num_layers)]
         self.dropout_out = layers.Dropout(dpo_rate)
 
     def call(self, x, ex, enc_output, training, look_ahead_mask=None, padding_mask=None):
@@ -258,21 +284,23 @@ class Decoder(layers.Layer):
         x_coded = x_conved + ex_enc + pos_enc
 
         x_coded = self.dropout(x_coded, training=training)
-        output = tf.expand_dims(x_coded, axis=1)
+        dec_output_s = tf.expand_dims(x_coded, axis=1)
+        dec_output_t = tf.transpose(dec_output_s, perm=[0, 2, 1, 3])
 
         for i in range(self.num_layers):
-            output, block1, block2 = self.decs[i](output, enc_output, training, look_ahead_mask, padding_mask)
-            attention_weights['decoder_layer{}_block1'.format(i + 1)] = block1
-            attention_weights['decoder_layer{}_block2'.format(i + 1)] = block2
+            dec_output_s, block1, block2 = self.decs_s[i](dec_output_s, enc_output, training, look_ahead_mask, padding_mask)
+            attention_weights['decoder_s_layer{}_block1'.format(i + 1)] = block1
+            attention_weights['decoder_s_layer{}_block2'.format(i + 1)] = block2
 
-        output = tf.transpose(output, perm=[0, 2, 1, 3])
-        d_shape = tf.shape(output)
-        output = tf.reshape(output, [d_shape[0], d_shape[1], -1])
+        dec_output_s = tf.transpose(dec_output_s, perm=[0, 2, 1, 3])
 
-        output = self.out_lyr(output)
-        output = self.dropout_out(output, training=training)
+        for i in range(self.num_layers):
+            dec_output_t, block = self.decs_t[i](dec_output_t, dec_output_s, training, padding_mask)
+            attention_weights['decoder_t_layer{}_block'.format(i + 1)] = block
 
-        return output, attention_weights
+        dec_output = self.dropout_out(tf.squeeze(dec_output_t, axis=-2), training=training)
+
+        return dec_output, attention_weights
 
 
 class STSAN_XL(Model):

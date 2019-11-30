@@ -6,15 +6,15 @@ import shutil
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike')
-parser.add_argument('--gpu_ids', default='0, 1, 2, 3, 4, 5, 6, 7', help='indexes of gpus to use')
-parser.add_argument('--model_indexes', default=[4, 5], help='indexes of model to be trained')
+parser.add_argument('--gpu_ids', default='0, 1, 2, 3, 4, 5', help='indexes of gpus to use')
+parser.add_argument('--model_indexes', default=[6, 16], help='indexes of model to be trained')
 parser.add_argument('--BATCH_SIZE', default=8)
 parser.add_argument('--remove_old_files', default=True)
-parser.add_argument('--load_saved_data', default=True)
+parser.add_argument('--load_saved_data', default=False)
 parser.add_argument('--es_patience', default=10)
 parser.add_argument('--es_threshold', default=0.01)
 parser.add_argument('--test_model', default=False)
-parser.add_argument('--mixed_precision', default=True)
+parser.add_argument('--mixed_precision', default=False)
 
 """ Model hyperparameters """
 parser.add_argument('--num_layers', default=4, help='num of self-attention layers')
