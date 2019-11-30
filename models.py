@@ -40,25 +40,16 @@ class GatedConv(layers.Layer):
 
         self.convs = [[layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same')
                        for _ in range(num_layers)] for _ in range(seq_len)]
-        self.convs_t = [[layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same')
-                       for _ in range(num_layers)] for _ in range(seq_len)]
-        self.dpo_layers = [layers.Dropout(dpo_rate) for _ in range(seq_len)]
+        self.dpo_layers = [[layers.Dropout(dpo_rate) for _ in range(num_layers)] for _ in range(seq_len)]
 
-        self.sigm = [[layers.Activation(sigmoid) for _ in range(num_layers)] for _ in range(seq_len)]
-
-    def call(self, inp, inp_t, training):
+    def call(self, inp, training):
         outputs = []
-
         inputs = tf.split(inp, self.seq_len, axis=1)
-        inputs_t = tf.split(inp_t, self.seq_len, axis=1)
         for i in range(self.seq_len):
             output = tf.squeeze(inputs[i], axis=1)
-            output_t = tf.squeeze(inputs_t[i], axis=1)
             for j in range(self.num_layers):
                 output = self.convs[i][j](output)
-                output_t = self.convs_t[i][j](output_t)
-                output *= self.sigm[i][j](output_t)
-            output = self.dpo_layers[i](output, training=training)
+                output = self.dpo_layers[i][j](output, training=training)
             output = tf.expand_dims(output, axis=1)
             outputs.append(output)
 
@@ -224,9 +215,9 @@ class Encoder(layers.Layer):
         ex_enc = tf.expand_dims(self.ex_encoder(ex), axis=2)
         pos_enc = tf.expand_dims(cors, axis=1)
 
-        inp, inp_t = tf.split(x, [2, 4], axis=-1)
+        # inp, inp_t = tf.split(x, [2, 4], axis=-1)
 
-        x_gated = self.gated_conv(inp, inp_t, training)
+        x_gated = self.gated_conv(inp, training)
         x_gated *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
         x_flat = tf.reshape(x_gated, [shape[0], shape[1], -1, self.d_model])
         enc_inp = x_flat + ex_enc + pos_enc

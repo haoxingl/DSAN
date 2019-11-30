@@ -121,12 +121,12 @@ class DataLoader_Global:
 
                                 global_f = f_data[t_now, ...]
 
-                                global_t = np.zeros((data_shape[1], data_shape[2], 4), dtype=np.float32)
+                                global_t = np.zeros((data_shape[1], data_shape[2], 2), dtype=np.float32)
 
-                                global_t[..., 0] = t_data[0, t_now, ..., r, c]
-                                global_t[..., 1] = t_data[1, t_now, ..., r, c]
-                                global_t[..., 2] = t_data[0, t_now, r, c, ...]
-                                global_t[..., 3] = t_data[1, t_now, r, c, ...]
+                                global_t[..., 0] += t_data[0, t_now, ..., r, c]
+                                global_t[..., 0] += t_data[1, t_now, ..., r, c]
+                                global_t[..., 1] += t_data[0, t_now, r, c, ...]
+                                global_t[..., 1] += t_data[1, t_now, r, c, ...]
 
                                 inp_ft_sample.append(np.concatenate([global_f, global_t], axis=-1))
                                 inp_ex_sample.append(ex_data[t_now, :])
@@ -142,12 +142,12 @@ class DataLoader_Global:
 
                                 global_f = f_data[t_now, ...]
 
-                                global_t = np.zeros((data_shape[1], data_shape[2], 4), dtype=np.float32)
+                                global_t = np.zeros((data_shape[1], data_shape[2], 2), dtype=np.float32)
 
-                                global_t[..., 0] = t_data[0, t_now, ..., r, c]
-                                global_t[..., 1] = t_data[1, t_now, ..., r, c]
-                                global_t[..., 2] = t_data[0, t_now, r, c, ...]
-                                global_t[..., 3] = t_data[1, t_now, r, c, ...]
+                                global_t[..., 0] += t_data[0, t_now, ..., r, c]
+                                global_t[..., 0] += t_data[1, t_now, ..., r, c]
+                                global_t[..., 1] += t_data[0, t_now, r, c, ...]
+                                global_t[..., 1] += t_data[1, t_now, r, c, ...]
 
                                 inp_ft_sample.append(np.concatenate([global_f, global_t], axis=-1))
                                 inp_ex_sample.append(ex_data[t_now, :])
@@ -158,12 +158,12 @@ class DataLoader_Global:
 
                             global_f = f_data[t_now, ..., :]
 
-                            global_t = np.zeros((data_shape[1], data_shape[2], 4), dtype=np.float32)
+                            global_t = np.zeros((data_shape[1], data_shape[2], 2), dtype=np.float32)
 
-                            global_t[..., 0] = t_data[0, t_now, ..., r, c]
-                            global_t[..., 1] = t_data[1, t_now, ..., r, c]
-                            global_t[..., 2] = t_data[0, t_now, r, c, ...]
-                            global_t[..., 3] = t_data[1, t_now, r, c, ...]
+                            global_t[..., 0] += t_data[0, t_now, ..., r, c]
+                            global_t[..., 0] += t_data[1, t_now, ..., r, c]
+                            global_t[..., 1] += t_data[0, t_now, r, c, ...]
+                            global_t[..., 1] += t_data[1, t_now, r, c, ...]
 
                             inp_ft_sample.append(np.concatenate([global_f, global_t], axis=-1))
                             inp_ex_sample.append(ex_data[t_now, :])

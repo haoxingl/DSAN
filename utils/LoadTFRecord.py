@@ -49,17 +49,30 @@ class DataLoader_Global:
 
         """ loading saved data """
         if load_saved_data and not self.test_model:
-            print('Loading {} data from .npzs...'.format(datatype))
-            inp_ft = np.load("data/inp_ft_{}_{}.npz".format(self.dataset, datatype))['data']
-            inp_ex = np.load("data/inp_ex_{}_{}.npz".format(self.dataset, datatype))['data']
-            dec_inp_f = np.load("data/dec_inp_f_{}_{}.npz".format(self.dataset, datatype))['data']
-            dec_inp_t = np.load("data/dec_inp_t_{}_{}.npz".format(self.dataset, datatype))['data']
-            dec_inp_ex = np.load("data/dec_inp_ex_{}_{}.npz".format(self.dataset, datatype))['data']
-            cors = np.load("data/cors_{}_{}.npz".format(self.dataset, datatype))['data']
-            y_t = np.load("data/y_t_{}_{}.npz".format(self.dataset, datatype))['data']
-            y = np.load("data/y_{}_{}.npz".format(self.dataset, datatype))['data']
+            tfrecords_path = './data/{}_{}.tfrecords'.format(self.dataset, datatype)
+            dataset = tf.data.TFRecordDataset(tfrecords_path)
 
-            return inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y
+            feature_description = {
+                'inp_ft': tf.io.FixedLenFeature([], tf.string),
+                'inp_ex': tf.io.FixedLenFeature([], tf.string),
+                'dec_inp_f': tf.io.FixedLenFeature([], tf.string),
+                'dec_inp_t': tf.io.FixedLenFeature([], tf.string),
+                'dec_inp_ex': tf.io.FixedLenFeature([], tf.string),
+                'cors': tf.io.FixedLenFeature([], tf.string),
+                'y': tf.io.FixedLenFeature([], tf.string),
+                'y_t': tf.io.FixedLenFeature([], tf.string)
+            }
+
+            def _parse_data_function(example_proto):
+                parsed_features = tf.io.parse_single_example(example_proto, feature_description)
+                output = {}
+                for key, value in parsed_features.items():
+                    output[key] = tf.io.decode_raw(parsed_features[key], tf.float32)
+                return output
+
+            parsed_dataset = dataset.map(_parse_data_function)
+            return parsed_dataset
+
         else:
             print("Loading {} data...".format(datatype))
             """ loading data """
@@ -210,5 +223,11 @@ class DataLoader_Global:
 
 
 if __name__ == "__main__":
-    dl = DataLoader_Global(64, test_model=True)
-    dl.generate_data(datatype='train', load_saved_data=False)
+    test_generate = False
+    if test_generate:
+        dl = DataLoader_Global(64, test_model=True)
+        dl.generate_data(datatype='train', load_saved_data=False)
+    else:
+        dl = DataLoader_Global(64, test_model=False)
+        dataset = dl.generate_data(datatype='train', load_saved_data=True)
+        features = next(iter(dataset))
