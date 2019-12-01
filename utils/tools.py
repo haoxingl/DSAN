@@ -1,12 +1,12 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import tensorflow as tf
-from utils.DataLoader_Global import DataLoader_Global as dl
+from utils.DataLoader import DataLoader as dl
 
 
 class DatasetGenerator:
-    def __init__(self, d_model=64, dataset='taxi', batch_size=64, n_hist_week=0, n_hist_day=7,
-                 n_hist_int=3, n_curr_int=1, n_int_before=1, n_pred=5, test_model=False):
+    def __init__(self, d_model=64, dataset='taxi', batch_size=64, n_hist_week=0, n_hist_day=7, n_hist_int=3,
+                 n_curr_int=1, n_int_before=1, n_pred=5, local_block_len=None, test_model=False):
         self.d_model = d_model
         self.dataset = dataset
         self.batch_size = batch_size
@@ -16,12 +16,13 @@ class DatasetGenerator:
         self.n_curr_int = n_curr_int
         self.n_int_before = n_int_before
         self.n_pred = n_pred
+        self.test_model = test_model
+        self.local_block_len = local_block_len
         self.train_data_loaded = False
         self.test_data_loaded = False
-        self.test_model = test_model
 
-    def load_data(self, datatype, load_saved_data):
-        data_loader = dl(self.d_model, self.dataset, self.test_model)
+    def load_data(self, datatype, no_save=False, load_saved_data=False):
+        data_loader = dl(self.d_model, self.dataset, self.local_block_len, self.test_model)
         inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y = data_loader.generate_data(
             datatype,
             self.n_hist_week,
@@ -30,6 +31,8 @@ class DatasetGenerator:
             self.n_curr_int,
             self.n_int_before,
             self.n_pred,
+            self.local_block_len,
+            no_save,
             load_saved_data
         )
 
@@ -52,10 +55,10 @@ class DatasetGenerator:
 
         return dataset, inp_ft.shape
 
-    def build_dataset(self, datatype='train', load_saved_data=False, strategy=None):
+    def build_dataset(self, datatype='train', no_save=None, load_saved_data=False, strategy=None):
         assert datatype == 'train' or datatype == 'test'
         if datatype == 'train':
-            train_dataset, data_shape = self.load_data(datatype, load_saved_data or self.train_data_loaded)
+            train_dataset, data_shape = self.load_data(datatype, no_save, load_saved_data or self.train_data_loaded)
 
             if not self.train_data_loaded:
                 self.train_data_loaded = True
@@ -82,7 +85,7 @@ class DatasetGenerator:
             if not self.test_data_loaded:
                 self.test_data_loaded = True
 
-                test_set, data_shape = self.load_data(datatype, load_saved_data)
+                test_set, data_shape = self.load_data(datatype, no_save, load_saved_data)
 
                 if self.batch_size > 1:
                     test_set = test_set.batch(self.batch_size)
@@ -108,6 +111,6 @@ def create_look_ahead_mask(size):
 
 
 if __name__ == "__main__":
-    dg = DatasetGenerator()
-    a, b = dg.build_dataset(load_saved_data=True)
-    c = dg.build_dataset(datatype='test', load_saved_data=True)
+    dg = DatasetGenerator(local_block_len=3, test_model=100)
+    a, b = dg.build_dataset(no_save=True)
+    c = dg.build_dataset(datatype='test', no_save=True)
