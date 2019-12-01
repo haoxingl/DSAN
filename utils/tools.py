@@ -55,7 +55,7 @@ class DatasetGenerator:
 
         return dataset, inp_ft.shape
 
-    def build_dataset(self, datatype='train', no_save=None, load_saved_data=False, strategy=None):
+    def build_dataset(self, datatype='train', load_saved_data=False, strategy=None, no_save=None):
         assert datatype == 'train' or datatype == 'test'
         if datatype == 'train':
             train_dataset, data_shape = self.load_data(datatype, no_save, load_saved_data or self.train_data_loaded)

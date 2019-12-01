@@ -67,8 +67,8 @@ class ModelTrainer:
         test_model = args.test_model
         result_output_path = "results/stsan_xl/{}.txt".format(self.model_index)
 
-        train_dataset, val_dataset = self.dataset_generator.build_dataset('train', args.no_save, args.load_saved_data, strategy)
-        test_dataset = self.dataset_generator.build_dataset('test', args.no_save, args.load_saved_data, strategy)
+        train_dataset, val_dataset = self.dataset_generator.build_dataset('train', args.load_saved_data, strategy, args.no_save)
+        test_dataset = self.dataset_generator.build_dataset('test', args.load_saved_data, strategy, args.no_save)
 
         with strategy.scope():
 
@@ -290,7 +290,7 @@ class ModelTrainer:
 
                 if test_model or reshuffle_helper.check(epoch):
                     train_dataset, val_dataset = \
-                        self.dataset_generator.build_dataset('train', args.no_save, args.load_saved_data, strategy)
+                        self.dataset_generator.build_dataset('train', args.load_saved_data, strategy, args.no_save)
 
                 tf_summary_scalar(summary_writer, "epoch_time", time.time() - start, epoch + 1)
                 print('Time taken for 1 epoch: {} secs\n'.format(time.time() - start))
