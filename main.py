@@ -8,9 +8,9 @@ parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike')
 parser.add_argument('--gpu_ids', default='0, 1, 2, 3, 4, 5', help='indexes of gpus to use')
 parser.add_argument('--index', default=5, help='indexes of model to be trained')
-parser.add_argument('--run_time', default=1, help='indexes of model to be trained')
-parser.add_argument('--BATCH_SIZE', default=32)
-parser.add_argument('--local_block_len', default=5)
+parser.add_argument('--run_time', default=[2, 3], help='indexes of model to be trained')
+parser.add_argument('--BATCH_SIZE', default=64)
+parser.add_argument('--local_block_len', default=2)
 parser.add_argument('--remove_old_files', default=True)
 parser.add_argument('--load_saved_data', default=False)
 parser.add_argument('--no_save', default=False)
@@ -91,9 +91,10 @@ print("Dataset chosen: {}".format(args.dataset))
 from ModelTrainer import ModelTrainer
 
 if __name__ == "__main__":
-    for num in range(args.run_time):
-        model_index = args.dataset + '_{}_{}'.format(args.index, num + 1)
+    for num in args.run_time:
+        model_index = args.dataset + '_{}_{}'.format(args.index, num)
         print('Model index: {}'.format(model_index))
+        args.local_block_len = num
         if args.remove_old_files:
             try:
                 shutil.rmtree('./checkpoints/stsan_xl/{}'.format(model_index), ignore_errors=True)
@@ -112,4 +113,3 @@ if __name__ == "__main__":
         model_trainer = ModelTrainer(model_index, args)
         print("\nStrat training STSAN-XL...\n")
         model_trainer.train()
-        args.load_saved_data = True

@@ -155,10 +155,10 @@ class ModelTrainer:
 
             def train_step(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y):
 
-                lh_mask = create_look_ahead_mask(tf.shape(y)[1])
+                lah_mask = create_look_ahead_mask(tf.shape(y)[1])
 
                 with tf.GradientTape() as tape:
-                    predictions, _ = stsan_xl(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, True, lh_mask)
+                    predictions, _ = stsan_xl(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, True, look_ahead_mask=lah_mask)
                     loss = loss_function(y, predictions)
 
                 gradients = tape.gradient(loss, stsan_xl.trainable_variables)
@@ -177,10 +177,12 @@ class ModelTrainer:
                 return strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None)
 
             def test_step(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y, final_test=False):
-                tar_inp = dec_inp_f[:, :1, :]
+                targets = dec_inp_f[:, :1, :]
                 for i in range(args.n_pred):
                     tar_inp_ex = dec_inp_ex[:, :i + 1, :]
-                    predictions, _ = stsan_xl(inp_ft, inp_ex, tar_inp, tar_inp_ex, cors, training=False)
+                    lah_mask = create_look_ahead_mask(tf.shape(targets)[1])
+
+                    predictions, _ = stsan_xl(inp_ft, inp_ex, targets, tar_inp_ex, cors, False, look_ahead_mask=lah_mask)
 
                     """ here we filter out all nodes where their real flows are less than 10 """
                     real_in = y[:, i, 0]
@@ -199,7 +201,7 @@ class ModelTrainer:
                         in_mae_test[i](masked_real_in, masked_pred_in)
                         out_mae_test[i](masked_real_out, masked_pred_out)
 
-                    tar_inp = tf.concat([tar_inp, predictions[:, -1:, :]], axis=-2)
+                    targets = tf.concat([targets, predictions[:, -1:, :]], axis=-2)
 
             @tf.function
             def distributed_test_step(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y, final_test=False):
