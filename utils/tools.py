@@ -102,7 +102,7 @@ def write_result(path, str, print_str=True):
     if print_str:
         print(str)
     with open(path, 'a+') as file:
-        file.write(str)
+        file.write(str + '\n')
 
 
 def create_look_ahead_mask(size):

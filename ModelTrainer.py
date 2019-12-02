@@ -95,17 +95,16 @@ class ModelTrainer:
                             out_mae_test[i].result() * self.f_max,
                             out_mae_test[i].result()
                         )
-                    template = "Final:\n" + template_rmse + "\n" + template_mae + "\n\n"
+                    template = "Final:\n" + template_rmse + "\n" + template_mae
                     write_result(result_output_path, template)
                 else:
                     template = "Epoch {} RMSE(in/out):".format(epoch + 1)
                     for i in range(args.n_pred):
                         template += " {}. {:.6f}/{:.6f}".format\
                             (i + 1, in_rmse_test[i].result(), out_rmse_test[i].result())
-                    template += "\n\n"
+                    template += "\n"
                     write_result(result_output_path,
                                  'Validation Result (Min-Max Norm, filtering out trivial grids):\n' + template, False)
-                    print(template)
 
             loss_object = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
 
@@ -228,7 +227,7 @@ class ModelTrainer:
                     print_verbose(epoch, final_test)
 
             """ Start training... """
-            write_result(result_output_path, "\nStart training...\n")
+            write_result(result_output_path, "Start training...\n")
             es_flag = False
             check_flag = False
             es_helper = EarlystopHelper(self.es_patiences, self.es_threshold)
@@ -274,7 +273,7 @@ class ModelTrainer:
                     check_flag = True
 
                 if test_model or check_flag:
-                    print("Validation Result (Min-Max Norm, filtering out trivial grids): ")
+                    print("Validation Result (Min-Max Norm, filtering out trivial grids):")
                     evaluate(val_dataset, epoch, final_test=False)
                     tf_summary_scalar(summary_writer, "in_rmse_test", in_rmse_test[0].result(), epoch + 1)
                     tf_summary_scalar(summary_writer, "out_rmse_test", out_rmse_test[0].result(), epoch + 1)
@@ -282,7 +281,7 @@ class ModelTrainer:
                     tf_summary_scalar(summary_writer, "best_epoch", es_helper.get_bestepoch(), epoch + 1)
 
                 ckpt_save_path = ckpt_manager.save()
-                print('Saving checkpoint for epoch {} at {}\n'.format(epoch + 1, ckpt_save_path))
+                print('Save checkpoint for epoch {} at {}\n'.format(epoch + 1, ckpt_save_path))
 
                 if es_flag:
                     print("Early stoping...")
@@ -300,7 +299,7 @@ class ModelTrainer:
                 if test_model:
                     break
 
-            write_result(result_output_path, "Start testing (filtering out trivial grids):\n")
+            write_result(result_output_path, "Start testing (filtering out trivial grids):")
             evaluate(test_dataset, epoch, final_test=True)
             tf_summary_scalar(summary_writer, "final_in_rmse", in_rmse_test[0].result(), 1)
             tf_summary_scalar(summary_writer, "final_out_rmse", out_rmse_test[0].result(), 1)
