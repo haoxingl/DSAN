@@ -3,9 +3,12 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import tensorflow as tf
 import numpy as np
 from tensorflow.keras import layers, Model, Sequential
+
 # from tensorflow.keras.activations import sigmoid
 
 actfunc = 'relu'
+
+
 # from tensorflow_addons.activations import gelu as actfunc
 # from tensorflow_addons import layers as tfa_layers
 
@@ -282,7 +285,8 @@ class Decoder(layers.Layer):
         dec_output_t = tf.transpose(dec_output_s, perm=[0, 2, 1, 3])
 
         for i in range(self.num_layers):
-            dec_output_s, block1, block2 = self.decs_s[i](dec_output_s, enc_output, training, look_ahead_mask, padding_mask)
+            dec_output_s, block1, block2 = self.decs_s[i](dec_output_s, enc_output, training, look_ahead_mask,
+                                                          padding_mask)
             attention_weights['decoder_s_layer{}_block1'.format(i + 1)] = block1
             attention_weights['decoder_s_layer{}_block2'.format(i + 1)] = block2
 

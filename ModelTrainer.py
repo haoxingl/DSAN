@@ -67,7 +67,8 @@ class ModelTrainer:
         test_model = args.test_model
         result_output_path = "results/stsan_xl/{}.txt".format(self.model_index)
 
-        train_dataset, val_dataset = self.dataset_generator.build_dataset('train', args.load_saved_data, strategy, args.no_save)
+        train_dataset, val_dataset = self.dataset_generator.build_dataset('train', args.load_saved_data, strategy,
+                                                                          args.no_save)
         test_dataset = self.dataset_generator.build_dataset('test', args.load_saved_data, strategy, args.no_save)
 
         with strategy.scope():
@@ -100,7 +101,7 @@ class ModelTrainer:
                 else:
                     template = "Epoch {} RMSE(in/out):".format(epoch + 1)
                     for i in range(args.n_pred):
-                        template += " {}. {:.6f}/{:.6f}".format\
+                        template += " {}. {:.6f}/{:.6f}".format \
                             (i + 1, in_rmse_test[i].result(), out_rmse_test[i].result())
                     template += "\n"
                     write_result(result_output_path,
@@ -153,7 +154,8 @@ class ModelTrainer:
 
             def train_step(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y):
 
-                enc_padding_mask, combined_mask, dec_padding_mask, dec_padding_mask_t = create_masks(inp_ft, dec_inp_f)
+                enc_padding_mask, combined_mask, dec_padding_mask, dec_padding_mask_t = create_masks(inp_ft[..., :2],
+                                                                                                     dec_inp_f)
 
                 with tf.GradientTape() as tape:
                     predictions, _ = stsan_xl(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, True,
@@ -163,8 +165,8 @@ class ModelTrainer:
                 gradients = tape.gradient(loss, stsan_xl.trainable_variables)
                 optimizer.apply_gradients(zip(gradients, stsan_xl.trainable_variables))
 
-                in_rmse_train(y[:, :, 0], predictions[:, :, 0])
-                out_rmse_train(y[:, :, 1], predictions[:, :, 1])
+                in_rmse_train(y[..., 0], predictions[..., 0])
+                out_rmse_train(y[..., 1], predictions[..., 1])
 
                 return loss
 
@@ -179,7 +181,8 @@ class ModelTrainer:
                 targets = dec_inp_f[:, :1, :]
                 for i in range(args.n_pred):
                     tar_inp_ex = dec_inp_ex[:, :i + 1, :]
-                    enc_padding_mask, combined_mask, dec_padding_mask, dec_padding_mask_t = create_masks(inp_ft, targets)
+                    enc_padding_mask, combined_mask, dec_padding_mask, dec_padding_mask_t = create_masks(
+                        inp_ft[..., :2], targets)
 
                     predictions, _ = stsan_xl(inp_ft, inp_ex, targets, tar_inp_ex, cors, False,
                                               enc_padding_mask, combined_mask, dec_padding_mask, dec_padding_mask_t)
@@ -262,7 +265,7 @@ class ModelTrainer:
                             epoch + 1, batch + 1, in_rmse_train.result(), out_rmse_train.result()))
 
                 if args.verbose_train:
-                    template = 'Epoch {} in_RMSE {:.6f} out_RMSE {:.6f}\n'.format\
+                    template = 'Epoch {} in_RMSE {:.6f} out_RMSE {:.6f}\n'.format \
                         (epoch + 1, in_rmse_train.result(), out_rmse_train.result())
                     write_result(result_output_path, template)
                     tf_summary_scalar(summary_writer, "in_rmse_train", in_rmse_train.result(), epoch + 1)

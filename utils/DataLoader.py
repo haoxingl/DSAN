@@ -164,10 +164,10 @@ class DataLoader:
                                 else:
                                     sample_f = np.zeros((block_full_len, block_full_len, 2), dtype=np.float32)
                                     sample_f[r_start_local:r_end_local, c_start_local:c_end_local, :] = f_data[
-                                                                                                          t_now,
-                                                                                                          r_start:r_end,
-                                                                                                          c_start:c_end,
-                                                                                                          :]
+                                                                                                        t_now,
+                                                                                                        r_start:r_end,
+                                                                                                        c_start:c_end,
+                                                                                                        :]
 
                                     sample_t = np.zeros((block_full_len, block_full_len, 2), dtype=np.float32)
                                     sample_t[r_start_local:r_end_local, c_start_local:c_end_local, 0] += \
