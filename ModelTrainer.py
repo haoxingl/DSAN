@@ -21,7 +21,7 @@ from models import STSAN_XL
 from utils.CustomSchedule import CustomSchedule
 from utils.EarlystopHelper import EarlystopHelper
 from utils.ReshuffleHelper import ReshuffleHelper
-from utils.tools import DatasetGenerator, write_result, create_look_ahead_mask
+from utils.tools import DatasetGenerator, write_result, create_masks
 from utils.Metrics import MAE
 
 """ use mirrored strategy for distributed training """
@@ -104,7 +104,7 @@ class ModelTrainer:
                             (i + 1, in_rmse_test[i].result(), out_rmse_test[i].result())
                     template += "\n"
                     write_result(result_output_path,
-                                 'Validation Result (Min-Max Norm, filtering out trivial grids):\n' + template, False)
+                                 'Validation Result (Min-Max Norm, filtering out trivial grids):\n' + template)
 
             loss_object = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
 
@@ -128,7 +128,6 @@ class ModelTrainer:
 
             stsan_xl = STSAN_XL(args.num_layers,
                                 args.d_model,
-                                args.d_global,
                                 args.num_heads,
                                 args.dff,
                                 args.cnn_layers,
@@ -154,10 +153,11 @@ class ModelTrainer:
 
             def train_step(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y):
 
-                lah_mask = create_look_ahead_mask(tf.shape(y)[1])
+                enc_padding_mask, combined_mask, dec_padding_mask, dec_padding_mask_t = create_masks(inp_ft, dec_inp_f)
 
                 with tf.GradientTape() as tape:
-                    predictions, _ = stsan_xl(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, True, look_ahead_mask=lah_mask)
+                    predictions, _ = stsan_xl(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, True,
+                                              enc_padding_mask, combined_mask, dec_padding_mask, dec_padding_mask_t)
                     loss = loss_function(y, predictions)
 
                 gradients = tape.gradient(loss, stsan_xl.trainable_variables)
@@ -179,9 +179,10 @@ class ModelTrainer:
                 targets = dec_inp_f[:, :1, :]
                 for i in range(args.n_pred):
                     tar_inp_ex = dec_inp_ex[:, :i + 1, :]
-                    lah_mask = create_look_ahead_mask(tf.shape(targets)[1])
+                    enc_padding_mask, combined_mask, dec_padding_mask, dec_padding_mask_t = create_masks(inp_ft, targets)
 
-                    predictions, _ = stsan_xl(inp_ft, inp_ex, targets, tar_inp_ex, cors, False, look_ahead_mask=lah_mask)
+                    predictions, _ = stsan_xl(inp_ft, inp_ex, targets, tar_inp_ex, cors, False,
+                                              enc_padding_mask, combined_mask, dec_padding_mask, dec_padding_mask_t)
 
                     """ here we filter out all nodes where their real flows are less than 10 """
                     real_in = y[:, i, 0]
@@ -273,7 +274,6 @@ class ModelTrainer:
                     check_flag = True
 
                 if test_model or check_flag:
-                    print("Validation Result (Min-Max Norm, filtering out trivial grids):")
                     evaluate(val_dataset, epoch, final_test=False)
                     tf_summary_scalar(summary_writer, "in_rmse_test", in_rmse_test[0].result(), epoch + 1)
                     tf_summary_scalar(summary_writer, "out_rmse_test", out_rmse_test[0].result(), epoch + 1)

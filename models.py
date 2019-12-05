@@ -3,13 +3,11 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import tensorflow as tf
 import numpy as np
 from tensorflow.keras import layers, Model, Sequential
-from tensorflow.keras.activations import sigmoid
+# from tensorflow.keras.activations import sigmoid
 
 actfunc = 'relu'
 # from tensorflow_addons.activations import gelu as actfunc
 # from tensorflow_addons import layers as tfa_layers
-
-final_cnn_filters = 128
 
 
 def get_angles(pos, i, d_model):
@@ -129,10 +127,10 @@ def point_wise_feed_forward_network(d_model, dff):
     ])
 
 
-def ex_encoding(d_model):
+def ex_encoding(d_model, dff):
     return Sequential([
-        layers.Dense(d_model * 2, activation=actfunc),
-        layers.Dense(d_model, activation='sigmoid')
+        layers.Dense(dff),
+        layers.Dense(d_model, activation='tanh')
     ])
 
 
@@ -189,7 +187,7 @@ class DecoderLayer(layers.Layer):
 
         ffn_output = self.ffn(out2)
         ffn_output = self.dropout3(ffn_output, training=training)
-        out3 = self.layernorm3(out2 + ffn_output)
+        out3 = self.layernorm3(ffn_output + out2)
 
         return out3, attn_weights_block1, attn_weights_block2
 
@@ -226,22 +224,19 @@ class Encoder(layers.Layer):
 
         self.d_model = d_model
         self.num_layers = num_layers
-        self.seq_len = seq_len
 
-        self.ex_encoder = ex_encoding(d_model)
+        self.ex_encoder = ex_encoding(d_model, dff)
         self.dropout = layers.Dropout(dpo_rate)
 
         self.gated_conv = GatedConv(cnn_layers, cnn_filters, seq_len, dpo_rate)
 
         self.encs = [EncoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(num_layers)]
 
-    def call(self, x, ex, cors, training, mask=None):
+    def call(self, x, ex, cors, training, mask):
         shape = tf.shape(x)
 
         ex_enc = tf.expand_dims(self.ex_encoder(ex), axis=2)
         pos_enc = tf.expand_dims(cors, axis=1)
-
-        # inp, inp_t = tf.split(x, [2, 4], axis=-1)
 
         x_gated = self.gated_conv(x, training)
         x_gated *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
@@ -257,14 +252,13 @@ class Encoder(layers.Layer):
 
 
 class Decoder(layers.Layer):
-    def __init__(self, num_layers, d_model, num_heads, dff, seq_len, dpo_rate=0.1):
+    def __init__(self, num_layers, d_model, num_heads, dff, dpo_rate=0.1):
         super(Decoder, self).__init__()
 
         self.d_model = d_model
         self.num_layers = num_layers
-        self.seq_len = seq_len
 
-        self.ex_encoder = ex_encoding(d_model)
+        self.ex_encoder = ex_encoding(d_model, dff)
         self.dropout = layers.Dropout(dpo_rate)
 
         self.li_conv = Sequential([layers.Dense(d_model, activation=actfunc) for _ in range(3)])
@@ -273,7 +267,7 @@ class Decoder(layers.Layer):
         self.decs_t = [DecoderLayer_NLAM(d_model, num_heads, dff, dpo_rate) for _ in range(num_layers)]
         self.dropout_out = layers.Dropout(dpo_rate)
 
-    def call(self, x, ex, enc_output, training, look_ahead_mask=None, padding_mask=None):
+    def call(self, x, ex, enc_output, training, look_ahead_mask, padding_mask, padding_mask_t):
         attention_weights = {}
 
         ex_enc = self.ex_encoder(ex)
@@ -295,7 +289,7 @@ class Decoder(layers.Layer):
         dec_output_s = tf.transpose(dec_output_s, perm=[0, 2, 1, 3])
 
         for i in range(self.num_layers):
-            dec_output_t, block = self.decs_t[i](dec_output_t, dec_output_s, training, padding_mask)
+            dec_output_t, block = self.decs_t[i](dec_output_t, dec_output_s, training, padding_mask_t)
             attention_weights['decoder_t_layer{}_block'.format(i + 1)] = block
 
         dec_output = self.dropout_out(tf.squeeze(dec_output_t, axis=-2), training=training)
@@ -304,20 +298,22 @@ class Decoder(layers.Layer):
 
 
 class STSAN_XL(Model):
-    def __init__(self, num_layers, d_model, d_global, num_heads, dff, cnn_layers, cnn_filters, seq_len, dpo_rate=0.1):
+    def __init__(self, num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters, seq_len, dpo_rate=0.1):
         super(STSAN_XL, self).__init__()
 
         self.encoder = Encoder(num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters, seq_len, dpo_rate)
 
-        self.decoder = Decoder(num_layers, d_model, num_heads, dff, seq_len, dpo_rate)
+        self.decoder = Decoder(num_layers, d_model, num_heads, dff, dpo_rate)
 
         self.final_lyr = layers.Dense(2, activation='tanh')
 
-    def call(self, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, training, look_ahead_mask=None):
-        enc_output = self.encoder(inp_ft, inp_ex, cors, training)
+    def call(self, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, training,
+             enc_padding_mask, look_ahead_mask, dec_padding_mask, dec_padding_mask_t):
+        enc_output = self.encoder(inp_ft, inp_ex, cors, training, enc_padding_mask)
 
         dec_output, attention_weights = \
-            self.decoder(dec_inp_f, dec_inp_ex, enc_output, training, look_ahead_mask=look_ahead_mask)
+            self.decoder(dec_inp_f, dec_inp_ex, enc_output, training,
+                         look_ahead_mask, dec_padding_mask, dec_padding_mask_t)
 
         final_output = self.final_lyr(dec_output)
 
