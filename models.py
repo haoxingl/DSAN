@@ -267,7 +267,7 @@ class Decoder(layers.Layer):
         self.li_conv = Sequential([layers.Dense(d_model, activation=actfunc) for _ in range(3)])
 
         self.decs_s = [DecoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(num_layers)]
-        self.decs_t = [DecoderLayer_NLAM(d_model, num_heads, dff, dpo_rate) for _ in range(num_layers)]
+        self.decs_t = [DecoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(num_layers)]
         self.dropout_out = layers.Dropout(dpo_rate)
 
     def call(self, x, ex, enc_output, training, look_ahead_mask, padding_mask, padding_mask_t):
@@ -293,7 +293,7 @@ class Decoder(layers.Layer):
         dec_output_s = tf.transpose(dec_output_s, perm=[0, 2, 1, 3])
 
         for i in range(self.num_layers):
-            dec_output_t, block = self.decs_t[i](dec_output_t, dec_output_s, training, padding_mask_t)
+            dec_output_t, block = self.decs_t[i](dec_output_t, dec_output_s, training, padding_mask_t, None)
             attention_weights['decoder_t_layer{}_block'.format(i + 1)] = block
 
         dec_output = self.dropout_out(tf.squeeze(dec_output_t, axis=-2), training=training)

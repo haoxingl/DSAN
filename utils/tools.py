@@ -131,7 +131,8 @@ def create_padding_mask_t(inp):
 def create_masks(inp, tar):
     enc_padding_mask = create_padding_mask(inp)
     dec_padding_mask = create_padding_mask(inp)
-    dec_padding_mask_t = create_padding_mask_t(inp)
+    dec_padding_mask_t = create_padding_mask(tar, dec_inp=True)
+    dec_padding_mask_t = tf.transpose(dec_padding_mask_t, perm=[0, 4, 1, 2, 3])
 
     look_ahead_mask = create_look_ahead_mask(tf.shape(tar)[1])
     dec_target_padding_mask = create_padding_mask(tar, dec_inp=True)
