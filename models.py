@@ -39,8 +39,10 @@ class GatedConv(layers.Layer):
         self.seq_len = seq_len  # indicate how many time intervals are included in the historical inputs
         self.num_layers = num_layers
 
-        self.convs = [[layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same')
-                       for _ in range(num_layers)] for _ in range(seq_len)]
+        self.convs = [[layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same'),
+                       layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same'),
+                       layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same')]
+                      for _ in range(seq_len)]
         self.dpo_layers = [[layers.Dropout(dpo_rate) for _ in range(num_layers)] for _ in range(seq_len)]
 
     def call(self, inp, training):
@@ -293,8 +295,9 @@ class Decoder(layers.Layer):
         dec_output_s = tf.transpose(dec_output_s, perm=[0, 2, 1, 3])
 
         for i in range(self.num_layers):
-            dec_output_t, block = self.decs_t[i](dec_output_t, dec_output_s, training, padding_mask_t, None)
-            attention_weights['decoder_t_layer{}_block'.format(i + 1)] = block
+            dec_output_t, block1, block2 = self.decs_t[i](dec_output_t, dec_output_s, training, padding_mask_t, None)
+            attention_weights['decoder_t_layer{}_block1'.format(i + 1)] = block1
+            attention_weights['decoder_t_layer{}_block2'.format(i + 1)] = block2
 
         dec_output = self.dropout_out(tf.squeeze(dec_output_t, axis=-2), training=training)
 
