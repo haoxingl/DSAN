@@ -39,10 +39,8 @@ class GatedConv(layers.Layer):
         self.seq_len = seq_len  # indicate how many time intervals are included in the historical inputs
         self.num_layers = num_layers
 
-        self.convs = [[layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same'),
-                       layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same'),
-                       layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same')]
-                      for _ in range(seq_len)]
+        self.convs = [[layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same')
+                       for _ in range(num_layers)] for _ in range(seq_len)]
         self.dpo_layers = [[layers.Dropout(dpo_rate) for _ in range(num_layers)] for _ in range(seq_len)]
 
     def call(self, inp, training):
@@ -135,7 +133,7 @@ def point_wise_feed_forward_network(d_model, dff):
 def ex_encoding(d_model, dff):
     return Sequential([
         layers.Dense(dff),
-        layers.Dense(d_model, activation='tanh')
+        layers.Dense(d_model, activation='sigmoid')
     ])
 
 
