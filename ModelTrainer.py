@@ -215,10 +215,6 @@ class ModelTrainer:
                 for i in range(args.n_pred):
                     in_rmse_test[i].reset_states()
                     out_rmse_test[i].reset_states()
-                    if final_test:
-                        in_mae_test[i].reset_states()
-                        out_mae_test[i].reset_states()
-
 
                 for (batch, (inp, tar)) in enumerate(eval_dataset):
                     inp_ft = inp["inp_ft"]
@@ -288,8 +284,8 @@ class ModelTrainer:
                     tf_summary_scalar(summary_writer, "best_epoch", es_helper.get_bestepoch(), epoch + 1)
 
                 if args.always_test and (epoch + 1) % args.always_test == 0:
-                    write_result(result_output_path, "Start testing (filtering out trivial grids):")
-                    evaluate(test_dataset, epoch, final_test=True)
+                    write_result(result_output_path, "Always Test:")
+                    evaluate(test_dataset, epoch)
 
                 ckpt_save_path = ckpt_manager.save()
                 print('Save checkpoint for epoch {} at {}\n'.format(epoch + 1, ckpt_save_path))
