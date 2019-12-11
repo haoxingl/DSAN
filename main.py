@@ -20,6 +20,7 @@ parser.add_argument('--es_patience', default=10)
 parser.add_argument('--es_threshold', default=0.01)
 parser.add_argument('--test_model', default=None)
 parser.add_argument('--mixed_precision', default=False)
+parser.add_argument('--always_test', default=None)
 
 """ Model hyperparameters """
 d_model = 64
