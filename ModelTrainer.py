@@ -34,6 +34,7 @@ class ModelTrainer:
         assert args.dataset == 'taxi' or args.dataset == 'bike'
         self.model_index = model_index
         self.args = args
+        self.args.seq_len = (args.n_hist_week + args.n_hist_day) * args.n_hist_int + args.n_curr_int
         self.GLOBAL_BATCH_SIZE = args.BATCH_SIZE * strategy.num_replicas_in_sync
         self.dataset_generator = DatasetGenerator(args.d_model,
                                                   args.dataset,
@@ -255,7 +256,15 @@ class ModelTrainer:
 
                     y = tar["y"]
 
+                    if args.trace_graph:
+                        tf.summary.trace_on(graph=True, profiler=True)
                     total_loss = distributed_train_step(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y)
+                    if args.trace_graph:
+                        with summary_writer.as_default():
+                            tf.summary.trace_export(
+                                name="stsan_xl_trace",
+                                step=step_cnt,
+                                profiler_outdir='./tensorboard/stsan_xl/{}'.format(self.model_index))
 
                     step_cnt += 1
                     tf_summary_scalar(summary_writer, "total_loss", total_loss, step_cnt)
@@ -293,7 +302,7 @@ class ModelTrainer:
                 if es_flag:
                     print("Early stoping...")
                     ckpt.restore(ckpt_manager.checkpoints[- args.es_patience - 1])
-                    print('Checkpoint restored!! At epoch {}\n'.format(int(epoch - args.es_patience)))
+                    print('Checkpoint restored!! At epoch {}\n'.format(int(epoch - args.es_patience + 1)))
                     break
 
                 if test_model or reshuffle_helper.check(epoch):

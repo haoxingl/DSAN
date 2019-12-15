@@ -3,24 +3,26 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import argparse
 import os
 import shutil
+from utils.tools import write_result
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike')
-parser.add_argument('--gpu_ids', default='0, 1, 2, 3, 4, 5, 6, 7', help='indexes of gpus to use')
-parser.add_argument('--index', default=6, help='indexes of model to be trained')
-parser.add_argument('--test_name', default='num_heads', help='indexes of model to be trained')
-parser.add_argument('--hyp', default=[16, 4, 2, 1], help='indexes of model to be trained')
+parser.add_argument('--gpu_ids', default='0', help='indexes of gpus to use')
+parser.add_argument('--index', default=1, help='indexes of model to be trained')
+parser.add_argument('--test_name', default=None, help='indexes of model to be trained')
+parser.add_argument('--hyp', default=None, help='indexes of model to be trained')
 parser.add_argument('--run_time', default=1, help='indexes of model to be trained')
 parser.add_argument('--BATCH_SIZE', default=64)
 parser.add_argument('--local_block_len', default=3)
 parser.add_argument('--remove_old_files', default=True)
-parser.add_argument('--load_saved_data', default=True)
-parser.add_argument('--no_save', default=True)
+parser.add_argument('--load_saved_data', default=False)
+parser.add_argument('--no_save', default=False)
 parser.add_argument('--es_patience', default=10)
 parser.add_argument('--es_threshold', default=0.01)
 parser.add_argument('--test_model', default=None)
 parser.add_argument('--mixed_precision', default=False)
 parser.add_argument('--always_test', default=None)
+parser.add_argument('--trace_graph', default=False)
 
 """ Model hyperparameters """
 d_model = 64
@@ -31,7 +33,7 @@ parser.add_argument('--dff', default=d_model * 4, help='dimension of feed-forwar
 # parser.add_argument('--d_final', default=256, help='dimension of final output dense layer')
 parser.add_argument('--num_heads', default=8, help='number of attention heads')
 parser.add_argument('--dropout_rate', default=0.1)
-parser.add_argument('--cnn_layers', default=1)
+parser.add_argument('--cnn_layers', default=3)
 parser.add_argument('--cnn_filters', default=d_model)
 # parser.add_argument('--weight_f_in', default=0.4)
 # parser.add_argument('--weight_f_out', default=0.6)
@@ -52,37 +54,44 @@ n_hist_day = 7
 n_hist_int = 3
 n_curr_int = 1
 n_int_before = 0
-seq_len = (n_hist_week + n_hist_day) * n_hist_int + n_curr_int
+# seq_len = (n_hist_week + n_hist_day) * n_hist_int + n_curr_int
 parser.add_argument('--n_hist_week', default=n_hist_week, help='num of previous weeks to consider')
 parser.add_argument('--n_hist_day', default=n_hist_day, help='num of previous days to consider')
 parser.add_argument('--n_hist_int', default=n_hist_int, help='num of time in previous days to consider')
 parser.add_argument('--n_curr_int', default=n_curr_int, help='num of time in today to consider')
 parser.add_argument('--n_int_before', default=1, help='num of time before predicted time to consider')
-parser.add_argument('--seq_len', default=seq_len, help='total length of historical data')
+# parser.add_argument('--seq_len', default=seq_len, help='total length of historical data')
 parser.add_argument('--n_pred', default=5, help='future time to predict')
 
 args = parser.parse_args()
 
-print("num_layers: {}, d_model: {}, dff: {}, num_heads: {}, cnn_layers: {}, cnn_filters: {}" \
-      .format(args.num_layers,
-              args.d_model,
-              args.dff,
-              args.num_heads,
-              args.cnn_layers,
-              args.cnn_filters
-              ))
-print(
-    "BATCH_SIZE: {}, es_patience: {}".format(
-        args.BATCH_SIZE, args.es_patience))
-print(
-    "n_hist_week: {}, n_hist_day: {}, n_hist_int: {}, n_curr_int: {}, n_int_before: {}, n_pred: {}" \
-        .format(args.n_hist_week,
-                args.n_hist_day,
-                args.n_hist_int,
-                args.n_curr_int,
-                args.n_int_before,
-                args.n_pred
-                ))
+
+def write_args(args, m_ind):
+    result_output_path = "results/stsan_xl/{}.txt".format(m_ind)
+
+    write_result(result_output_path,
+                 "num_layers: {}, d_model: {}, dff: {}, num_heads: {}, cnn_layers: {}, cnn_filters: {}".format(
+                     args.num_layers,
+                     args.d_model,
+                     args.dff,
+                     args.num_heads,
+                     args.cnn_layers,
+                     args.cnn_filters
+                 ))
+
+    write_result(result_output_path,
+                 "BATCH_SIZE: {}, es_patience: {}".format(args.BATCH_SIZE, args.es_patience))
+
+    write_result(result_output_path,
+                 "n_hist_week: {}, n_hist_day: {}, n_hist_int: {}, n_curr_int: {}, n_int_before: {}, n_pred: {}" \
+                 .format(args.n_hist_week,
+                         args.n_hist_day,
+                         args.n_hist_int,
+                         args.n_curr_int,
+                         args.n_int_before,
+                         args.n_pred
+                         ))
+
 
 if args.mixed_precision:
     os.environ['TF_ENABLE_AUTO_MIXED_PRECISION'] = '1'
@@ -118,6 +127,8 @@ if __name__ == "__main__":
                         shutil.rmtree('./tensorboard/stsan_xl/{}'.format(model_index), ignore_errors=True)
                     except:
                         pass
+                write_args(args, model_index)
+
                 model_trainer = ModelTrainer(model_index, args)
                 print("\nStrat training STSAN-XL...\n")
                 model_trainer.train()
@@ -141,6 +152,8 @@ if __name__ == "__main__":
                     shutil.rmtree('./tensorboard/stsan_xl/{}'.format(model_index), ignore_errors=True)
                 except:
                     pass
+            write_args(args, model_index)
+
             model_trainer = ModelTrainer(model_index, args)
             print("\nStrat training STSAN-XL...\n")
             model_trainer.train()
