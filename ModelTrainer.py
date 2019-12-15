@@ -1,5 +1,17 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import time
+
+import parameters_nyctaxi
+import parameters_nycbike
+
+from utils.tools import DatasetGenerator, write_result, create_masks
+from utils.CustomSchedule import CustomSchedule
+from utils.EarlystopHelper import EarlystopHelper
+from utils.ReshuffleHelper import ReshuffleHelper
+from utils.Metrics import MAE
+from models import STSAN_XL
+
 import tensorflow as tf
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -11,18 +23,6 @@ if gpus:
         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
     except RuntimeError as e:
         print(e)
-
-import time
-
-import parameters_nyctaxi
-import parameters_nycbike
-
-from models import STSAN_XL
-from utils.CustomSchedule import CustomSchedule
-from utils.EarlystopHelper import EarlystopHelper
-from utils.ReshuffleHelper import ReshuffleHelper
-from utils.tools import DatasetGenerator, write_result, create_masks
-from utils.Metrics import MAE
 
 """ use mirrored strategy for distributed training """
 strategy = tf.distribute.MirroredStrategy()
