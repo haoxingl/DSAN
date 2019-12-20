@@ -2,14 +2,15 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras import layers, Model, Sequential
+from tensorflow.keras import layers, Model, Sequential, backend
+from tensorflow.keras.utils import get_custom_objects
 
-# from tensorflow.keras.activations import sigmoid
+def gelu(x):
+    return 0.5 * x * (1 + tf.tanh(tf.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3))))
+
+get_custom_objects().update({'gelu': layers.Activation(gelu)})
 
 actfunc = 'relu'
-
-# from tensorflow_addons.activations import gelu as actfunc
-# from tensorflow_addons import layers as tfa_layers
 
 
 def get_angles(pos, i, d_model):
@@ -238,13 +239,13 @@ class Encoder(layers.Layer):
         shape = tf.shape(x)
 
         ex_enc = tf.expand_dims(self.ex_encoder(ex), axis=2)
-        # pos_enc = tf.expand_dims(cors, axis=1)
+        pos_enc = tf.expand_dims(cors, axis=1)
 
         x_gated = self.gated_conv(x, training)
         x_gated *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
         x_flat = tf.reshape(x_gated, [shape[0], shape[1], -1, self.d_model])
-        # enc_inp = x_flat + ex_enc + pos_enc
-        enc_inp = x_flat + ex_enc
+        enc_inp = x_flat + ex_enc + pos_enc
+        # enc_inp = x_flat + ex_enc
 
         output = self.dropout(enc_inp, training=training)
 
@@ -274,12 +275,12 @@ class Decoder(layers.Layer):
         attention_weights = {}
 
         ex_enc = self.ex_encoder(ex)
-        # pos_enc = spatial_posenc(0, 0, self.d_model)
+        pos_enc = spatial_posenc(0, 0, self.d_model)
 
         x_conved = self.li_conv(x)
         x_conved *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
-        # x_coded = x_conved + ex_enc + pos_enc
-        x_coded = x_conved + ex_enc
+        x_coded = x_conved + ex_enc + pos_enc
+        # x_coded = x_conved + ex_enc
 
         x_coded = self.dropout(x_coded, training=training)
         dec_output_s = tf.expand_dims(x_coded, axis=1)

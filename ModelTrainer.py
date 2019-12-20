@@ -28,10 +28,12 @@ if gpus:
 class ModelTrainer:
     def __init__(self, model_index, args):
         assert args.dataset == 'taxi' or args.dataset == 'bike'
+
         """ use mirrored strategy for distributed training """
         self.strategy = tf.distribute.MirroredStrategy()
         strategy = self.strategy
         print('Number of GPU devices: {}'.format(strategy.num_replicas_in_sync))
+
         self.model_index = model_index
         self.args = args
         self.args.seq_len = (args.n_hist_week + args.n_hist_day) * args.n_hist_int + args.n_curr_int
