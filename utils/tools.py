@@ -68,8 +68,8 @@ class DatasetGenerator:
 
             dataset_cached = train_dataset.cache()
             dataset_shuffled = dataset_cached.shuffle(data_size, reshuffle_each_iteration=False)
-            train_set = dataset_shuffled.take(train_size).shuffle(train_size)
             val_set = dataset_shuffled.skip(train_size)
+            train_set = dataset_shuffled.take(train_size).shuffle(train_size)
             train_set = train_set.batch(self.batch_size)
             val_set = val_set.batch(self.batch_size)
             # train_set = train_set.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)

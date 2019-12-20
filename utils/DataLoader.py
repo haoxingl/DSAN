@@ -1,7 +1,8 @@
 import numpy as np
+from utils.CordinateGenerator import CordinateGenerator
+
 import parameters_nyctaxi as param_taxi
 import parameters_nycbike as param_bike
-from utils.CordinateGenerator import CordinateGenerator
 
 
 class DataLoader:

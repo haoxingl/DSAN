@@ -2,9 +2,6 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import time
 
-import parameters_nyctaxi
-import parameters_nycbike
-
 from utils.tools import DatasetGenerator, write_result, create_masks
 from utils.CustomSchedule import CustomSchedule
 from utils.EarlystopHelper import EarlystopHelper
@@ -14,24 +11,27 @@ from models import STSAN_XL
 
 import tensorflow as tf
 
+import parameters_nyctaxi
+import parameters_nycbike
+
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
     try:
         for gpu in gpus:
             tf.config.experimental.set_memory_growth(gpu, True)
-        logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+        # logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+        # print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
     except RuntimeError as e:
         print(e)
-
-""" use mirrored strategy for distributed training """
-strategy = tf.distribute.MirroredStrategy()
-print('Number of GPU devices: {}'.format(strategy.num_replicas_in_sync))
 
 
 class ModelTrainer:
     def __init__(self, model_index, args):
         assert args.dataset == 'taxi' or args.dataset == 'bike'
+        """ use mirrored strategy for distributed training """
+        self.strategy = tf.distribute.MirroredStrategy()
+        strategy = self.strategy
+        print('Number of GPU devices: {}'.format(strategy.num_replicas_in_sync))
         self.model_index = model_index
         self.args = args
         self.args.seq_len = (args.n_hist_week + args.n_hist_day) * args.n_hist_int + args.n_curr_int
@@ -49,14 +49,12 @@ class ModelTrainer:
                                                   args.test_model)
 
         if args.dataset == 'taxi':
-            self.t_max = parameters_nyctaxi.t_train_max
             self.f_max = parameters_nyctaxi.f_train_max
             self.es_patiences = [5, args.es_patience]
             self.es_threshold = args.es_threshold
             self.reshuffle_threshold = [0.8, 1.3, 1.7]
             self.test_threshold = 10 / self.f_max
         else:
-            self.t_max = parameters_nycbike.t_train_max
             self.f_max = parameters_nycbike.f_train_max
             self.es_patiences = [5, args.es_patience]
             self.es_threshold = args.es_threshold
@@ -64,6 +62,7 @@ class ModelTrainer:
             self.test_threshold = 10 / self.f_max
 
     def train(self):
+        strategy = self.strategy
         args = self.args
         test_model = args.test_model
         result_output_path = "results/stsan_xl/{}.txt".format(self.model_index)
@@ -291,10 +290,9 @@ class ModelTrainer:
                     tf_summary_scalar(summary_writer, "out_rmse_test", out_rmse_test[0].result(), epoch + 1)
                     es_flag = es_helper.check(in_rmse_test[0].result() + out_rmse_test[0].result(), epoch)
                     tf_summary_scalar(summary_writer, "best_epoch", es_helper.get_bestepoch(), epoch + 1)
-
-                if args.always_test and (epoch + 1) % args.always_test == 0:
-                    write_result(result_output_path, "Always Test:")
-                    evaluate(test_dataset, epoch)
+                    if args.always_test and (epoch + 1) % args.always_test == 0:
+                        write_result(result_output_path, "Always Test:")
+                        evaluate(test_dataset, epoch)
 
                 ckpt_save_path = ckpt_manager.save()
                 print('Save checkpoint for epoch {} at {}\n'.format(epoch + 1, ckpt_save_path))
