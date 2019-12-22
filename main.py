@@ -101,6 +101,7 @@ assert args.dataset == 'taxi' or args.dataset == 'bike'
 print("Dataset chosen: {}".format(args.dataset))
 
 from ModelTrainer import ModelTrainer
+import tensorflow.keras.backend as K
 
 if __name__ == "__main__":
     if args.test_name:
@@ -133,6 +134,7 @@ if __name__ == "__main__":
                 model_trainer.train()
 
                 args.load_saved_data = True
+                K.clear_session()
     else:
         for cnt in range(args.run_time):
             model_index = args.dataset + '_{}_{}'.format(args.index, cnt + 1)
@@ -160,3 +162,4 @@ if __name__ == "__main__":
             model_trainer.train()
 
             args.load_saved_data = True
+            K.clear_session()

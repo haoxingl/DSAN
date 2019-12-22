@@ -2,7 +2,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras import layers, Model, Sequential, backend
+from tensorflow.keras import layers, Model, Sequential
 from tensorflow.keras.utils import get_custom_objects
 
 def gelu(x):
@@ -10,8 +10,7 @@ def gelu(x):
 
 get_custom_objects().update({'gelu': layers.Activation(gelu)})
 
-actfunc = 'relu'
-
+actfunc = 'gelu'
 
 def get_angles(pos, i, d_model):
     angle_rates = 1 / np.power(10000, (2 * (i // 2)) / np.float32(d_model))
