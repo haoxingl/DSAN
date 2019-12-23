@@ -10,7 +10,7 @@ def gelu(x):
 
 get_custom_objects().update({'gelu': layers.Activation(gelu)})
 
-actfunc = 'relu'
+actfunc = 'gelu'
 
 def get_angles(pos, i, d_model):
     angle_rates = 1 / np.power(10000, (2 * (i // 2)) / np.float32(d_model))
@@ -227,7 +227,7 @@ class Encoder(layers.Layer):
         self.d_model = d_model
         self.num_layers = num_layers
 
-        # self.ex_encoder = ex_encoding(d_model, dff)
+        self.ex_encoder = ex_encoding(d_model, dff)
         self.dropout = layers.Dropout(dpo_rate)
 
         self.gated_conv = GatedConv(cnn_layers, cnn_filters, seq_len, dpo_rate)
@@ -237,14 +237,14 @@ class Encoder(layers.Layer):
     def call(self, x, ex, cors, training, mask):
         shape = tf.shape(x)
 
-        # ex_enc = tf.expand_dims(self.ex_encoder(ex), axis=2)
-        # pos_enc = tf.expand_dims(cors, axis=1)
+        ex_enc = tf.expand_dims(self.ex_encoder(ex), axis=2)
+        pos_enc = tf.expand_dims(cors, axis=1)
 
         x_gated = self.gated_conv(x, training)
         x_gated *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
         x_flat = tf.reshape(x_gated, [shape[0], shape[1], -1, self.d_model])
-        # enc_inp = x_flat + ex_enc + pos_enc
-        enc_inp = x_flat
+        enc_inp = x_flat + ex_enc + pos_enc
+        # enc_inp = x_flat
 
         output = self.dropout(enc_inp, training=training)
 
@@ -261,7 +261,7 @@ class Decoder(layers.Layer):
         self.d_model = d_model
         self.num_layers = num_layers
 
-        # self.ex_encoder = ex_encoding(d_model, dff)
+        self.ex_encoder = ex_encoding(d_model, dff)
         self.dropout = layers.Dropout(dpo_rate)
 
         self.li_conv = Sequential([layers.Dense(d_model, activation=actfunc) for _ in range(3)])
@@ -273,13 +273,13 @@ class Decoder(layers.Layer):
     def call(self, x, ex, enc_output, training, look_ahead_mask, padding_mask, padding_mask_t):
         attention_weights = {}
 
-        # ex_enc = self.ex_encoder(ex)
-        # pos_enc = spatial_posenc(0, 0, self.d_model)
+        ex_enc = self.ex_encoder(ex)
+        pos_enc = spatial_posenc(0, 0, self.d_model)
 
         x_conved = self.li_conv(x)
         x_conved *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
-        # x_coded = x_conved + ex_enc + pos_enc
-        x_coded = x_conved
+        x_coded = x_conved + ex_enc + pos_enc
+        # x_coded = x_conved
 
         x_coded = self.dropout(x_coded, training=training)
         dec_output_s = tf.expand_dims(x_coded, axis=1)
