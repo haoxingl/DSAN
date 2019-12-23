@@ -238,13 +238,13 @@ class Encoder(layers.Layer):
         shape = tf.shape(x)
 
         # ex_enc = tf.expand_dims(self.ex_encoder(ex), axis=2)
-        pos_enc = tf.expand_dims(cors, axis=1)
+        # pos_enc = tf.expand_dims(cors, axis=1)
 
         x_gated = self.gated_conv(x, training)
         x_gated *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
         x_flat = tf.reshape(x_gated, [shape[0], shape[1], -1, self.d_model])
         # enc_inp = x_flat + ex_enc + pos_enc
-        enc_inp = x_flat + pos_enc
+        enc_inp = x_flat
 
         output = self.dropout(enc_inp, training=training)
 
@@ -274,12 +274,12 @@ class Decoder(layers.Layer):
         attention_weights = {}
 
         # ex_enc = self.ex_encoder(ex)
-        pos_enc = spatial_posenc(0, 0, self.d_model)
+        # pos_enc = spatial_posenc(0, 0, self.d_model)
 
         x_conved = self.li_conv(x)
         x_conved *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
         # x_coded = x_conved + ex_enc + pos_enc
-        x_coded = x_conved + pos_enc
+        x_coded = x_conved
 
         x_coded = self.dropout(x_coded, training=training)
         dec_output_s = tf.expand_dims(x_coded, axis=1)
