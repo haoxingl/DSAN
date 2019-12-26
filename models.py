@@ -10,7 +10,7 @@ def gelu(x):
 
 get_custom_objects().update({'gelu': layers.Activation(gelu)})
 
-actfunc = 'gelu'
+actfunc = 'relu'
 
 def get_angles(pos, i, d_model):
     angle_rates = 1 / np.power(10000, (2 * (i // 2)) / np.float32(d_model))

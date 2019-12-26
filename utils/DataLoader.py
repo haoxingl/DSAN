@@ -348,3 +348,4 @@ class DataLoader:
 if __name__ == "__main__":
     dl = DataLoader(64, test_model=100)
     inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y = dl.generate_data()
+

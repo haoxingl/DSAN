@@ -162,7 +162,11 @@ class ModelTrainer:
                 with tf.GradientTape() as tape:
                     predictions, _ = stsan_xl(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, True,
                                               enc_padding_mask, combined_mask, dec_padding_mask, dec_padding_mask_t)
-                    loss = loss_function(y, predictions)
+                    if not args.weight_1:
+                        loss = loss_function(y, predictions)
+                    else:
+                        loss = loss_function(y[:, :1, :], predictions[:, :1, :]) * args.weight_1 + \
+                               loss_function(y[:, 1:, :], predictions[:, 1:, :]) * args.weight_2
 
                 gradients = tape.gradient(loss, stsan_xl.trainable_variables)
                 optimizer.apply_gradients(zip(gradients, stsan_xl.trainable_variables))
