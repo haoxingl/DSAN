@@ -31,6 +31,32 @@ def spatial_posenc(position_r, position_c, d_model):
     return tf.cast(pos_encoding[np.newaxis, ...], dtype=tf.float32)
 
 
+# class GatedConv(layers.Layer):
+#     def __init__(self, num_layers, num_filters, seq_len, dpo_rate=0.1):
+#         super(GatedConv, self).__init__()
+#
+#         self.seq_len = seq_len  # indicate how many time intervals are included in the historical inputs
+#         self.num_layers = num_layers
+#
+#         self.convs = [[layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same')
+#                        for _ in range(num_layers)] for _ in range(seq_len)]
+#         self.dpo_layers = [[layers.Dropout(dpo_rate) for _ in range(num_layers)] for _ in range(seq_len)]
+#
+#     def call(self, inp, training):
+#         outputs = []
+#         inputs = tf.split(inp, self.seq_len, axis=1)
+#         for i in range(self.seq_len):
+#             output = tf.squeeze(inputs[i], axis=1)
+#             for j in range(self.num_layers):
+#                 output = self.convs[i][j](output)
+#                 output = self.dpo_layers[i][j](output, training=training)
+#             output = tf.expand_dims(output, axis=1)
+#             outputs.append(output)
+#
+#         output_final = tf.concat(outputs, axis=1)
+#
+#         return output_final
+
 class GatedConv(layers.Layer):
     def __init__(self, num_layers, num_filters, seq_len, dpo_rate=0.1):
         super(GatedConv, self).__init__()
@@ -38,22 +64,21 @@ class GatedConv(layers.Layer):
         self.seq_len = seq_len  # indicate how many time intervals are included in the historical inputs
         self.num_layers = num_layers
 
-        self.convs = [[layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same')
-                       for _ in range(num_layers)] for _ in range(seq_len)]
-        self.dpo_layers = [[layers.Dropout(dpo_rate) for _ in range(num_layers)] for _ in range(seq_len)]
+        self.convs = Sequential([layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same')
+                       for _ in range(num_layers)])
+        self.dropout = layers.Dropout(dpo_rate)
 
     def call(self, inp, training):
         outputs = []
         inputs = tf.split(inp, self.seq_len, axis=1)
         for i in range(self.seq_len):
             output = tf.squeeze(inputs[i], axis=1)
-            for j in range(self.num_layers):
-                output = self.convs[i][j](output)
-                output = self.dpo_layers[i][j](output, training=training)
+            output = self.convs(output)
             output = tf.expand_dims(output, axis=1)
             outputs.append(output)
 
         output_final = tf.concat(outputs, axis=1)
+        output_final = self.dropout(output_final, training=training)
 
         return output_final
 
@@ -194,30 +219,30 @@ class DecoderLayer(layers.Layer):
         return out3, attn_weights_block1, attn_weights_block2
 
 
-class DecoderLayer_NLAM(layers.Layer):
-    def __init__(self, d_model, num_heads, dff, dpo_rate=0.1):
-        super(DecoderLayer_NLAM, self).__init__()
-
-        self.mha = MultiHeadAttention(d_model, num_heads, self_all=False)
-
-        self.ffn = point_wise_feed_forward_network(d_model, dff)
-
-        self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
-        self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
-
-        self.dropout1 = layers.Dropout(dpo_rate)
-        self.dropout2 = layers.Dropout(dpo_rate)
-
-    def call(self, x, enc_output_x, training, padding_mask):
-        attn1, attn_weights_block = self.mha(enc_output_x, enc_output_x, x, padding_mask)
-        attn1 = self.dropout1(attn1, training=training)
-        out1 = self.layernorm1(attn1 + x)
-
-        ffn_output = self.ffn(out1)
-        ffn_output = self.dropout2(ffn_output, training=training)
-        out2 = self.layernorm2(out1 + ffn_output)
-
-        return out2, attn_weights_block
+# class DecoderLayer_NLAM(layers.Layer):
+#     def __init__(self, d_model, num_heads, dff, dpo_rate=0.1):
+#         super(DecoderLayer_NLAM, self).__init__()
+#
+#         self.mha = MultiHeadAttention(d_model, num_heads, self_all=False)
+#
+#         self.ffn = point_wise_feed_forward_network(d_model, dff)
+#
+#         self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
+#         self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
+#
+#         self.dropout1 = layers.Dropout(dpo_rate)
+#         self.dropout2 = layers.Dropout(dpo_rate)
+#
+#     def call(self, x, enc_output_x, training, padding_mask):
+#         attn1, attn_weights_block = self.mha(enc_output_x, enc_output_x, x, padding_mask)
+#         attn1 = self.dropout1(attn1, training=training)
+#         out1 = self.layernorm1(attn1 + x)
+#
+#         ffn_output = self.ffn(out1)
+#         ffn_output = self.dropout2(ffn_output, training=training)
+#         out2 = self.layernorm2(out1 + ffn_output)
+#
+#         return out2, attn_weights_block
 
 
 class Encoder(layers.Layer):
