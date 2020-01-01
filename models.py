@@ -31,32 +31,6 @@ def spatial_posenc(position_r, position_c, d_model):
     return tf.cast(pos_encoding[np.newaxis, ...], dtype=tf.float32)
 
 
-# class GatedConv(layers.Layer):
-#     def __init__(self, num_layers, num_filters, seq_len, dpo_rate=0.1):
-#         super(GatedConv, self).__init__()
-#
-#         self.seq_len = seq_len  # indicate how many time intervals are included in the historical inputs
-#         self.num_layers = num_layers
-#
-#         self.convs = [[layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same')
-#                        for _ in range(num_layers)] for _ in range(seq_len)]
-#         self.dpo_layers = [[layers.Dropout(dpo_rate) for _ in range(num_layers)] for _ in range(seq_len)]
-#
-#     def call(self, inp, training):
-#         outputs = []
-#         inputs = tf.split(inp, self.seq_len, axis=1)
-#         for i in range(self.seq_len):
-#             output = tf.squeeze(inputs[i], axis=1)
-#             for j in range(self.num_layers):
-#                 output = self.convs[i][j](output)
-#                 output = self.dpo_layers[i][j](output, training=training)
-#             output = tf.expand_dims(output, axis=1)
-#             outputs.append(output)
-#
-#         output_final = tf.concat(outputs, axis=1)
-#
-#         return output_final
-
 class GatedConv(layers.Layer):
     def __init__(self, num_layers, num_filters, seq_len, dpo_rate=0.1):
         super(GatedConv, self).__init__()
@@ -64,23 +38,49 @@ class GatedConv(layers.Layer):
         self.seq_len = seq_len  # indicate how many time intervals are included in the historical inputs
         self.num_layers = num_layers
 
-        self.convs = Sequential([layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same')
-                       for _ in range(num_layers)])
-        self.dropout = layers.Dropout(dpo_rate)
+        self.convs = [[layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same')
+                       for _ in range(num_layers)] for _ in range(seq_len)]
+        self.dpo_layers = [[layers.Dropout(dpo_rate) for _ in range(num_layers)] for _ in range(seq_len)]
 
     def call(self, inp, training):
         outputs = []
         inputs = tf.split(inp, self.seq_len, axis=1)
         for i in range(self.seq_len):
             output = tf.squeeze(inputs[i], axis=1)
-            output = self.convs(output)
+            for j in range(self.num_layers):
+                output = self.convs[i][j](output)
+                output = self.dpo_layers[i][j](output, training=training)
             output = tf.expand_dims(output, axis=1)
             outputs.append(output)
 
         output_final = tf.concat(outputs, axis=1)
-        output_final = self.dropout(output_final, training=training)
 
         return output_final
+
+# class GatedConv(layers.Layer):
+#     def __init__(self, num_layers, num_filters, seq_len, dpo_rate=0.1):
+#         super(GatedConv, self).__init__()
+#
+#         self.seq_len = seq_len  # indicate how many time intervals are included in the historical inputs
+#         self.num_layers = num_layers
+#
+#         self.convs = Sequential([layers.Conv2D(num_filters, (3, 3), activation=actfunc, padding='same')
+#                        for _ in range(num_layers)])
+#         self.dropout = layers.Dropout(dpo_rate)
+#
+#     def call(self, inp, training):
+#         outputs = []
+#         inputs = tf.split(inp, self.seq_len, axis=1)
+#         for i in range(self.seq_len):
+#             output = tf.squeeze(inputs[i], axis=1)
+#             output = self.convs(output)
+#             output = tf.expand_dims(output, axis=1)
+#             outputs.append(output)
+#
+#         output_final = tf.concat(outputs, axis=1)
+#         output_final = self.dropout(output_final, training=training)
+#
+#         return output_final
 
 
 def scaled_dot_product_attention(q, k, v, mask):
@@ -336,7 +336,7 @@ class STSAN_XL(Model):
 
         self.decoder = Decoder(num_layers, d_model, num_heads, dff, dpo_rate)
 
-        self.final_lyr = layers.Dense(2, activation='tanh')
+        self.final_lyr = layers.Dense(2, activation='gelu')
 
     def call(self, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, training,
              enc_padding_mask, look_ahead_mask, dec_padding_mask, dec_padding_mask_t):
