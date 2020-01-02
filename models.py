@@ -336,7 +336,7 @@ class STSAN_XL(Model):
 
         self.decoder = Decoder(num_layers, d_model, num_heads, dff, dpo_rate)
 
-        self.final_lyr = layers.Dense(2, activation='gelu')
+        self.final_lyr = layers.Dense(2, activation='tanh')
 
     def call(self, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, training,
              enc_padding_mask, look_ahead_mask, dec_padding_mask, dec_padding_mask_t):
