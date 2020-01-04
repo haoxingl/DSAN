@@ -1,6 +1,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import time
+import time, os, codecs, json
 
 from utils.tools import DatasetGenerator, write_result, create_masks
 from utils.CustomSchedule import CustomSchedule
@@ -145,14 +145,22 @@ class ModelTrainer:
             ckpt_manager = tf.train.CheckpointManager(ckpt, checkpoint_path,
                                                       max_to_keep=(args.es_patience + self.es_patiences[0] + 1))
 
-            if ckpt_manager.latest_checkpoint:
-                if len(ckpt_manager.checkpoints) <= args.es_patience:
+            if os.path.isfile(checkpoint_path + '/ckpt_record.json'):
+                with codecs.open(checkpoint_path + '/ckpt_record.json', encoding='utf-8') as json_file:
+                    ckpt_record = json.load(json_file)
+                if ckpt_record['best_epoch'] == -1:
                     ckpt.restore(ckpt_manager.checkpoints[-1])
-                elif len(ckpt_manager.checkpoints) < args.es_patience + self.es_patiences[0] + 1:
-                    ckpt.restore(ckpt_manager.checkpoints[args.es_patience - 1])
                 else:
-                    ckpt.restore(ckpt_manager.checkpoints[0])
-                print('Latest checkpoint restored!!')
+                    ckpt.restore(ckpt_manager.checkpoints[(ckpt_record['best_epoch'] - ckpt_record['epoch'] - 1)])
+
+            # if ckpt_manager.latest_checkpoint:
+            #     if len(ckpt_manager.checkpoints) <= args.es_patience:
+            #         ckpt.restore(ckpt_manager.checkpoints[-1])
+            #     elif len(ckpt_manager.checkpoints) < args.es_patience + self.es_patiences[0] + 1:
+            #         ckpt.restore(ckpt_manager.checkpoints[args.es_patience - 1])
+            #     else:
+            #         ckpt.restore(ckpt_manager.checkpoints[0])
+            #     print('Latest checkpoint restored!!')
 
             def train_step(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y):
 
@@ -301,6 +309,10 @@ class ModelTrainer:
                         evaluate(test_dataset, epoch)
 
                 ckpt_save_path = ckpt_manager.save()
+                ckpt_record = {'epoch': epoch + 1, 'best_epoch': es_helper.get_bestepoch()}
+                ckpt_record = json.dumps(ckpt_record, indent=4)
+                with codecs.open(checkpoint_path + '/ckpt_record.json', 'w', 'utf-8') as outfile:
+                    outfile.write(ckpt_record)
                 print('Save checkpoint for epoch {} at {}\n'.format(epoch + 1, ckpt_save_path))
 
                 if es_flag:

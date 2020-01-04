@@ -8,9 +8,9 @@ from utils.tools import write_result
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike')
 parser.add_argument('--gpu_ids', default='0, 1, 2, 3, 4, 5, 6, 7', help='indexes of gpus to use')
-parser.add_argument('--index', default=0, help='indexes of model to be trained')
-parser.add_argument('--test_name', default=None, help='indexes of model to be trained')
-parser.add_argument('--hyp', default=None, help='indexes of model to be trained')
+parser.add_argument('--index', default=6, help='indexes of model to be trained')
+parser.add_argument('--test_name', default="day_13", help='indexes of model to be trained')
+parser.add_argument('--hyp', default=0, help='indexes of model to be trained')
 parser.add_argument('--run_time', default=3, help='indexes of model to be trained')
 parser.add_argument('--BATCH_SIZE', default=64)
 parser.add_argument('--local_block_len', default=3)
@@ -48,8 +48,8 @@ parser.add_argument('--warmup_steps', default=4000)
 parser.add_argument('--verbose_train', default=1)
 
 """ Data hyperparameters """
-n_hist_week = 0
-n_hist_day = 7
+n_hist_week = 1
+n_hist_day = 3
 n_hist_int = 3
 n_curr_int = 1
 n_int_before = 0
