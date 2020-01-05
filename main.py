@@ -103,6 +103,9 @@ print("Dataset chosen: {}".format(args.dataset))
 from ModelTrainer import ModelTrainer
 import tensorflow.keras.backend as K
 
+if not os.path.exists('./results/stsan_xl'):
+    os.makedirs('./results/stsan_xl')
+
 if __name__ == "__main__":
     if args.test_name:
         for this_arg in args.hyp:
@@ -111,9 +114,6 @@ if __name__ == "__main__":
                 print('Model index: {}'.format(model_index))
 
                 exec("%s = %d" % ('args.{}'.format(args.test_name), this_arg))
-
-                if not os.path.exists('./results/stsan_xl'):
-                    os.makedirs('./results/stsan_xl')
 
                 if args.remove_old_files:
                     try:
@@ -141,17 +141,12 @@ if __name__ == "__main__":
             model_index = args.dataset + '_{}_{}'.format(args.index, cnt + 1)
             print('Model index: {}'.format(model_index))
 
-            if not os.path.exists('./results/stsan_xl'):
-                os.makedirs('./results/stsan_xl')
-
             if args.remove_old_files:
                 try:
                     shutil.rmtree('./checkpoints/stsan_xl/{}'.format(model_index), ignore_errors=True)
                 except:
                     pass
                 try:
-                    if not os.path.exists('./results/stsan_xl'):
-                        os.makedirs('./results/stsan_xl')
                     os.remove('./results/stsan_xl/{}.txt'.format(model_index))
                 except:
                     pass
