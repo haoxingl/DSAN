@@ -14,7 +14,7 @@ parser.add_argument('--hyp', default=[1], help='indexes of model to be trained')
 parser.add_argument('--run_time', default=3, help='indexes of model to be trained')
 parser.add_argument('--BATCH_SIZE', default=64)
 parser.add_argument('--local_block_len', default=3)
-parser.add_argument('--remove_old_files', default=False)
+parser.add_argument('--remove_old_files', default=True)
 parser.add_argument('--load_saved_data', default=False)
 parser.add_argument('--no_save', default=False)
 parser.add_argument('--es_patience', default=10)
@@ -84,6 +84,19 @@ def write_args(args, m_ind):
                          args.n_pred
                          ))
 
+def remove_oldfiles(model_index):
+    try:
+        shutil.rmtree('./checkpoints/stsan_xl/{}'.format(model_index), ignore_errors=True)
+    except:
+        pass
+    try:
+        os.remove('./results/stsan_xl/{}.txt'.format(model_index))
+    except:
+        pass
+    try:
+        shutil.rmtree('./tensorboard/stsan_xl/{}'.format(model_index), ignore_errors=True)
+    except:
+        pass
 
 if args.mixed_precision:
     os.environ['TF_ENABLE_AUTO_MIXED_PRECISION'] = '1'
@@ -109,18 +122,8 @@ if __name__ == "__main__":
                 exec("%s = %d" % ('args.{}'.format(args.test_name), this_arg))
 
                 if args.remove_old_files:
-                    try:
-                        shutil.rmtree('./checkpoints/stsan_xl/{}'.format(model_index), ignore_errors=True)
-                    except:
-                        pass
-                    try:
-                        os.remove('./results/stsan_xl/{}.txt'.format(model_index))
-                    except:
-                        pass
-                    try:
-                        shutil.rmtree('./tensorboard/stsan_xl/{}'.format(model_index), ignore_errors=True)
-                    except:
-                        pass
+                    remove_oldfiles(model_index)
+
                 write_args(args, model_index)
 
                 model_trainer = ModelTrainer(model_index, args)
@@ -135,18 +138,8 @@ if __name__ == "__main__":
             print('Model index: {}'.format(model_index))
 
             if args.remove_old_files:
-                try:
-                    shutil.rmtree('./checkpoints/stsan_xl/{}'.format(model_index), ignore_errors=True)
-                except:
-                    pass
-                try:
-                    os.remove('./results/stsan_xl/{}.txt'.format(model_index))
-                except:
-                    pass
-                try:
-                    shutil.rmtree('./tensorboard/stsan_xl/{}'.format(model_index), ignore_errors=True)
-                except:
-                    pass
+                remove_oldfiles(model_index)
+
             write_args(args, model_index)
 
             model_trainer = ModelTrainer(model_index, args)

@@ -60,7 +60,7 @@ class EarlystopHelper:
             'epoch_cnt': self.epoch_cnt,
             'best_rmse': self.best_rmse,
             'best_epoch': self.best_epoch,
-            'last_rmse': self.last_rmse,
+            'last_rmse': float(self.last_rmse.numpy()),
             'cnt_2': self.cnt_2,
             'check_flag': self.check_flag
         }
