@@ -1,3 +1,5 @@
+import json, codecs
+
 class EarlystopHelper:
     def __init__(self, patiences=[5, 10], threshold=0.01, error_delta=0):
         assert len(patiences) == 2
@@ -52,3 +54,26 @@ class EarlystopHelper:
 
     def get_bestepoch(self):
         return self.best_epoch
+
+    def save_ckpt(self, path):
+        ckpt_record = {
+            'epoch_cnt': self.epoch_cnt,
+            'best_rmse': self.best_rmse,
+            'best_epoch': self.best_epoch,
+            'last_rmse': self.last_rmse,
+            'cnt_2': self.cnt_2,
+            'check_flag': self.check_flag
+        }
+        ckpt_record = json.dumps(ckpt_record, indent=4)
+        with codecs.open(path + '/es_helper.json', 'w', 'utf-8') as outfile:
+            outfile.write(ckpt_record)
+
+    def load_ckpt(self, path):
+        with codecs.open(path + '/es_helper.json', encoding='utf-8') as json_file:
+            ckpt_record = json.load(json_file)
+            self.epoch_cnt = ckpt_record['epoch_cnt']
+            self.best_rmse = ckpt_record['best_rmse']
+            self.best_epoch = ckpt_record['best_epoch']
+            self.last_rmse = ckpt_record['last_rmse']
+            self.cnt_2 = ckpt_record['cnt_2']
+            self.check_flag = ckpt_record['check_flag']

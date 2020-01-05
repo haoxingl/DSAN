@@ -19,8 +19,6 @@ if gpus:
     try:
         for gpu in gpus:
             tf.config.experimental.set_memory_growth(gpu, True)
-        # logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-        # print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
     except RuntimeError as e:
         print(e)
 
@@ -126,8 +124,6 @@ class ModelTrainer:
             learning_rate = CustomSchedule(args.d_model, args.warmup_steps)
 
             optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
-            # if args.mixed_precision:
-            #     optimizer = tf.train.experimental.enable_mixed_precision_graph_rewrite(optimizer)
 
             stsan_xl = STSAN_XL(args.num_layers,
                                 args.d_model,
@@ -137,21 +133,6 @@ class ModelTrainer:
                                 args.cnn_filters,
                                 args.seq_len,
                                 args.dropout_rate)
-
-            checkpoint_path = "./checkpoints/stsan_xl/{}".format(self.model_index)
-
-            ckpt = tf.train.Checkpoint(STSAN_XL=stsan_xl, optimizer=optimizer)
-
-            ckpt_manager = tf.train.CheckpointManager(ckpt, checkpoint_path,
-                                                      max_to_keep=(args.es_patience + 1))
-
-            if os.path.isfile(checkpoint_path + '/ckpt_record.json'):
-                with codecs.open(checkpoint_path + '/ckpt_record.json', encoding='utf-8') as json_file:
-                    ckpt_record = json.load(json_file)
-                if ckpt_record['best_epoch'] == -1:
-                    ckpt.restore(ckpt_manager.checkpoints[-1])
-                else:
-                    ckpt.restore(ckpt_manager.checkpoints[(ckpt_record['best_epoch'] - ckpt_record['epoch'] - 1)])
 
             def train_step(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y):
 
@@ -236,14 +217,44 @@ class ModelTrainer:
                     print_verbose(epoch, final_test)
 
             """ Start training... """
-            write_result(result_output_path, "Start training...\n")
             es_flag = False
             check_flag = False
             es_helper = EarlystopHelper(self.es_patiences, self.es_threshold)
             reshuffle_helper = ReshuffleHelper(args.es_patience, self.reshuffle_threshold)
             summary_writer = tf.summary.create_file_writer('./tensorboard/stsan_xl/{}'.format(self.model_index))
             step_cnt = 0
-            for epoch in range(args.MAX_EPOCH):
+            last_epoch = 0
+
+            checkpoint_path = "./checkpoints/stsan_xl/{}".format(self.model_index)
+
+            ckpt = tf.train.Checkpoint(STSAN_XL=stsan_xl, optimizer=optimizer)
+
+            ckpt_manager = tf.train.CheckpointManager(ckpt, checkpoint_path,
+                                                      max_to_keep=(args.es_patience + 1))
+
+            if os.path.isfile(checkpoint_path + '/ckpt_record.json'):
+                with codecs.open(checkpoint_path + '/ckpt_record.json', encoding='utf-8') as json_file:
+                    ckpt_record = json.load(json_file)
+
+                last_epoch = ckpt_record['epoch']
+                es_flag = ckpt_record['es_flag']
+                check_flag = ckpt_record['check_flag']
+                es_helper.load_ckpt(checkpoint_path)
+                reshuffle_helper.load_ckpt(checkpoint_path)
+                step_cnt = ckpt_record['step_cnt']
+
+                ckpt.restore(ckpt_manager.checkpoints[-1])
+                write_result(result_output_path, "Check point restored at epoch {}".format(last_epoch))
+
+            write_result(result_output_path, "Start training...\n")
+
+            for epoch in range(last_epoch, args.MAX_EPOCH):
+
+                if es_flag:
+                    print("Early stoping...")
+                    ckpt.restore(ckpt_manager.checkpoints[0])
+                    print('Checkpoint restored!! At epoch {}\n'.format(es_helper.get_bestepoch()))
+                    break
 
                 start = time.time()
 
@@ -286,7 +297,7 @@ class ModelTrainer:
 
                 eval_rmse = (in_rmse_train.result() + out_rmse_train.result()) / 2
 
-                if check_flag == False and es_helper.refresh_status(eval_rmse):
+                if not check_flag and es_helper.refresh_status(eval_rmse):
                     check_flag = True
 
                 if test_model or check_flag:
@@ -299,22 +310,19 @@ class ModelTrainer:
                         write_result(result_output_path, "Always Test:")
                         evaluate(test_dataset, epoch)
 
-                ckpt_save_path = ckpt_manager.save()
-                ckpt_record = {'epoch': epoch + 1, 'best_epoch': es_helper.get_bestepoch()}
-                ckpt_record = json.dumps(ckpt_record, indent=4)
-                with codecs.open(checkpoint_path + '/ckpt_record.json', 'w', 'utf-8') as outfile:
-                    outfile.write(ckpt_record)
-                print('Save checkpoint for epoch {} at {}\n'.format(epoch + 1, ckpt_save_path))
-
-                if es_flag:
-                    print("Early stoping...")
-                    ckpt.restore(ckpt_manager.checkpoints[0])
-                    print('Checkpoint restored!! At epoch {}\n'.format(es_helper.get_bestepoch()))
-                    break
-
                 if test_model or reshuffle_helper.check(epoch):
                     train_dataset, val_dataset = \
                         self.dataset_generator.build_dataset('train', args.load_saved_data, strategy, args.no_save)
+
+                ckpt_save_path = ckpt_manager.save()
+                ckpt_record = {'epoch': epoch + 1, 'best_epoch': es_helper.get_bestepoch(),
+                               'check_flag': check_flag, 'es_flag': es_flag, 'step_cnt': step_cnt}
+                ckpt_record = json.dumps(ckpt_record, indent=4)
+                with codecs.open(checkpoint_path + '/ckpt_record.json', 'w', 'utf-8') as outfile:
+                    outfile.write(ckpt_record)
+                es_helper.save_ckpt(checkpoint_path)
+                reshuffle_helper.save_ckpt(checkpoint_path)
+                print('Save checkpoint for epoch {} at {}\n'.format(epoch + 1, ckpt_save_path))
 
                 tf_summary_scalar(summary_writer, "epoch_time", time.time() - start, epoch + 1)
                 print('Time taken for 1 epoch: {} secs\n'.format(time.time() - start))
