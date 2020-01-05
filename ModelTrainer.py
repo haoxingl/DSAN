@@ -143,7 +143,7 @@ class ModelTrainer:
             ckpt = tf.train.Checkpoint(STSAN_XL=stsan_xl, optimizer=optimizer)
 
             ckpt_manager = tf.train.CheckpointManager(ckpt, checkpoint_path,
-                                                      max_to_keep=(args.es_patience + self.es_patiences[0] + 1))
+                                                      max_to_keep=(args.es_patience + 1))
 
             if os.path.isfile(checkpoint_path + '/ckpt_record.json'):
                 with codecs.open(checkpoint_path + '/ckpt_record.json', encoding='utf-8') as json_file:
@@ -152,15 +152,6 @@ class ModelTrainer:
                     ckpt.restore(ckpt_manager.checkpoints[-1])
                 else:
                     ckpt.restore(ckpt_manager.checkpoints[(ckpt_record['best_epoch'] - ckpt_record['epoch'] - 1)])
-
-            # if ckpt_manager.latest_checkpoint:
-            #     if len(ckpt_manager.checkpoints) <= args.es_patience:
-            #         ckpt.restore(ckpt_manager.checkpoints[-1])
-            #     elif len(ckpt_manager.checkpoints) < args.es_patience + self.es_patiences[0] + 1:
-            #         ckpt.restore(ckpt_manager.checkpoints[args.es_patience - 1])
-            #     else:
-            #         ckpt.restore(ckpt_manager.checkpoints[0])
-            #     print('Latest checkpoint restored!!')
 
             def train_step(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y):
 
@@ -249,7 +240,7 @@ class ModelTrainer:
             es_flag = False
             check_flag = False
             es_helper = EarlystopHelper(self.es_patiences, self.es_threshold)
-            reshuffle_helper = ReshuffleHelper(self.es_patiences[1], self.reshuffle_threshold)
+            reshuffle_helper = ReshuffleHelper(args.es_patience, self.reshuffle_threshold)
             summary_writer = tf.summary.create_file_writer('./tensorboard/stsan_xl/{}'.format(self.model_index))
             step_cnt = 0
             for epoch in range(args.MAX_EPOCH):
@@ -317,8 +308,8 @@ class ModelTrainer:
 
                 if es_flag:
                     print("Early stoping...")
-                    ckpt.restore(ckpt_manager.checkpoints[- args.es_patience - 1])
-                    print('Checkpoint restored!! At epoch {}\n'.format(int(epoch - args.es_patience + 1)))
+                    ckpt.restore(ckpt_manager.checkpoints[0])
+                    print('Checkpoint restored!! At epoch {}\n'.format(es_helper.get_bestepoch()))
                     break
 
                 if test_model or reshuffle_helper.check(epoch):
