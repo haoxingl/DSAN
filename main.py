@@ -9,8 +9,8 @@ parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike')
 parser.add_argument('--gpu_ids', default='0, 1, 2, 3, 4, 5, 6, 7', help='indexes of gpus to use')
 parser.add_argument('--index', default=6, help='indexes of model to be trained')
-parser.add_argument('--test_name', default="day_131", help='indexes of model to be trained')
-parser.add_argument('--hyp', default=[0], help='indexes of model to be trained')
+parser.add_argument('--test_name', default="fix_day", help='indexes of model to be trained')
+parser.add_argument('--hyp', default=[1], help='indexes of model to be trained')
 parser.add_argument('--run_time', default=3, help='indexes of model to be trained')
 parser.add_argument('--BATCH_SIZE', default=64)
 parser.add_argument('--local_block_len', default=3)
@@ -48,18 +48,11 @@ parser.add_argument('--warmup_steps', default=4000)
 parser.add_argument('--verbose_train', default=1)
 
 """ Data hyperparameters """
-n_hist_week = 1
-n_hist_day = 3
-n_hist_int = 1
-n_curr_int = 1
-n_int_before = 0
-# seq_len = (n_hist_week + n_hist_day) * n_hist_int + n_curr_int
-parser.add_argument('--n_hist_week', default=n_hist_week, help='num of previous weeks to consider')
-parser.add_argument('--n_hist_day', default=n_hist_day, help='num of previous days to consider')
-parser.add_argument('--n_hist_int', default=n_hist_int, help='num of time in previous days to consider')
-parser.add_argument('--n_curr_int', default=n_curr_int, help='num of time in today to consider')
-parser.add_argument('--n_int_before', default=1, help='num of time before predicted time to consider')
-# parser.add_argument('--seq_len', default=seq_len, help='total length of historical data')
+parser.add_argument('--n_hist_week', default=1, help='num of previous weeks to consider')
+parser.add_argument('--n_hist_day', default=3, help='num of previous days to consider')
+parser.add_argument('--n_hist_int', default=1, help='num of time in previous days to consider')
+parser.add_argument('--n_curr_int', default=1, help='num of time in today to consider')
+parser.add_argument('--n_int_before', default=0, help='num of time before predicted time to consider')
 parser.add_argument('--n_pred', default=5, help='future time to predict')
 
 args = parser.parse_args()
