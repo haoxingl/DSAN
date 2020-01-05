@@ -112,14 +112,15 @@ if __name__ == "__main__":
 
                 exec("%s = %d" % ('args.{}'.format(args.test_name), this_arg))
 
+                if not os.path.exists('./results/stsan_xl'):
+                    os.makedirs('./results/stsan_xl')
+
                 if args.remove_old_files:
                     try:
                         shutil.rmtree('./checkpoints/stsan_xl/{}'.format(model_index), ignore_errors=True)
                     except:
                         pass
                     try:
-                        if not os.path.exists('./results/stsan_xl'):
-                            os.makedirs('./results/stsan_xl')
                         os.remove('./results/stsan_xl/{}.txt'.format(model_index))
                     except:
                         pass
@@ -139,6 +140,9 @@ if __name__ == "__main__":
         for cnt in range(args.run_time):
             model_index = args.dataset + '_{}_{}'.format(args.index, cnt + 1)
             print('Model index: {}'.format(model_index))
+
+            if not os.path.exists('./results/stsan_xl'):
+                os.makedirs('./results/stsan_xl')
 
             if args.remove_old_files:
                 try:
