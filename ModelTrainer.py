@@ -295,7 +295,7 @@ class ModelTrainer:
                     tf_summary_scalar(summary_writer, "in_rmse_train", in_rmse_train.result(), epoch + 1)
                     tf_summary_scalar(summary_writer, "out_rmse_train", out_rmse_train.result(), epoch + 1)
 
-                eval_rmse = (in_rmse_train.result() + out_rmse_train.result()) / 2
+                eval_rmse = float(((in_rmse_train.result() + out_rmse_train.result()) / 2).numpy())
 
                 if not check_flag and es_helper.refresh_status(eval_rmse):
                     check_flag = True
@@ -304,7 +304,7 @@ class ModelTrainer:
                     evaluate(val_dataset, epoch, final_test=False)
                     tf_summary_scalar(summary_writer, "in_rmse_test", in_rmse_test[0].result(), epoch + 1)
                     tf_summary_scalar(summary_writer, "out_rmse_test", out_rmse_test[0].result(), epoch + 1)
-                    es_flag = es_helper.check(in_rmse_test[0].result() + out_rmse_test[0].result(), epoch)
+                    es_flag = es_helper.check(float((in_rmse_test[0].result() + out_rmse_test[0].result()).numpy()), epoch)
                     tf_summary_scalar(summary_writer, "best_epoch", es_helper.get_bestepoch(), epoch + 1)
                     if args.always_test and (epoch + 1) % args.always_test == 0:
                         write_result(result_output_path, "Always Test:")

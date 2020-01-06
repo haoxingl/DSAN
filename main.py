@@ -11,7 +11,7 @@ parser.add_argument('--gpu_ids', default='0, 1, 2, 3, 4, 5, 6, 7', help='indexes
 parser.add_argument('--index', default=6, help='indexes of model to be trained')
 parser.add_argument('--test_name', default="data_131105", help='indexes of model to be trained')
 parser.add_argument('--hyp', default=[1], help='indexes of model to be trained')
-parser.add_argument('--run_time', default=3, help='indexes of model to be trained')
+parser.add_argument('--run_time', default=1, help='indexes of model to be trained')
 parser.add_argument('--BATCH_SIZE', default=64)
 parser.add_argument('--local_block_len', default=3)
 parser.add_argument('--remove_old_files', default=True)
