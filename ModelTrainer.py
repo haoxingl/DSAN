@@ -221,7 +221,7 @@ class ModelTrainer:
             check_flag = False
             es_helper = EarlystopHelper(self.es_patiences, self.es_threshold)
             reshuffle_helper = ReshuffleHelper(args.es_patience, self.reshuffle_threshold)
-            summary_writer = tf.summary.create_file_writer('~/tensorboard/stsan_xl/{}'.format(self.model_index))
+            summary_writer = tf.summary.create_file_writer('/home/lxx/tensorboard/stsan_xl/{}'.format(self.model_index))
             step_cnt = 0
             last_epoch = 0
 
@@ -279,7 +279,7 @@ class ModelTrainer:
                             tf.summary.trace_export(
                                 name="stsan_xl_trace",
                                 step=step_cnt,
-                                profiler_outdir='~/tensorboard/stsan_xl/{}'.format(self.model_index))
+                                profiler_outdir='/home/lxx/tensorboard/stsan_xl/{}'.format(self.model_index))
 
                     step_cnt += 1
                     tf_summary_scalar(summary_writer, "total_loss", total_loss, step_cnt)
