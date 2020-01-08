@@ -328,7 +328,7 @@ class ModelTrainer:
                 print('Time taken for 1 epoch: {} secs\n'.format(time.time() - start))
 
                 if test_model:
-                    break
+                    es_flag = True
 
             write_result(result_output_path, "Start testing (filtering out trivial grids):")
             evaluate(test_dataset, epoch, final_test=True)
