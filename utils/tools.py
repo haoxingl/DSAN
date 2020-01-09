@@ -110,49 +110,34 @@ def create_look_ahead_mask(size):
     mask = 1 - tf.linalg.band_part(tf.ones((size, size)), -1, 0)
     return mask
 
-def create_padding_mask_enc(inp):
+
+def create_padding_mask(inp):
     oup = tf.math.reduce_sum(inp, axis=-1)
     shape = tf.shape(oup)
-    oup = tf.reshape(oup, [shape[0], shape[1], -1])
+    oup = tf.reshape(oup, [shape[0], -1, shape[3]])
     oup = oup[:, :, tf.newaxis, tf.newaxis, :]
     mask = tf.cast(tf.math.equal(oup, 0), tf.float32)
     return mask
 
+
 def create_padding_mask_dec(inp):
     oup = tf.math.reduce_sum(inp, axis=-1)
-    oup = oup[:, :, tf.newaxis, tf.newaxis, tf.newaxis]
+    oup = oup[:, tf.newaxis, tf.newaxis, tf.newaxis, :]
     mask = tf.cast(tf.math.equal(oup, 0), tf.float32)
     return mask
-
-def create_padding_mask(inp, dec_inp=False):
-    inp = tf.math.reduce_sum(inp, axis=-1)
-    if dec_inp:
-        inp = inp[:, tf.newaxis, tf.newaxis, tf.newaxis, :]
-    else:
-        shape = tf.shape(inp)
-        inp = tf.reshape(inp, [shape[0], shape[1], -1])
-        inp = inp[:, :, tf.newaxis, tf.newaxis, :]
-    inp = tf.cast(tf.math.equal(inp, 0), tf.float32)
-    return inp
-
-
-def create_padding_mask_t(inp):
-    inp = tf.math.reduce_sum(inp, [2, 3, 4])
-    inp = tf.cast(tf.math.equal(inp, 0), tf.float32)
-    return inp[:, tf.newaxis, tf.newaxis, tf.newaxis, :]
 
 
 def create_masks(inp, tar):
     enc_padding_mask = create_padding_mask(inp)
     dec_padding_mask = create_padding_mask(inp)
-    dec_padding_mask_t = create_padding_mask(tar, dec_inp=True)
-    dec_padding_mask_t = tf.transpose(dec_padding_mask_t, perm=[0, 4, 1, 2, 3])
+    dec_padding_mask_s = create_padding_mask_dec(tar)
+    dec_padding_mask_s = tf.transpose(dec_padding_mask_s, perm=[0, 4, 1, 2, 3])
 
-    look_ahead_mask = create_look_ahead_mask(tf.shape(tar)[1])
-    dec_target_padding_mask = create_padding_mask(tar, dec_inp=True)
+    look_ahead_mask = create_look_ahead_mask(tf.shape(tar)[1])[tf.newaxis, tf.newaxis, tf.newaxis, :, :]
+    dec_target_padding_mask = create_padding_mask_dec(tar)
     combined_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
 
-    return enc_padding_mask, combined_mask, dec_padding_mask, dec_padding_mask_t
+    return enc_padding_mask, combined_mask, dec_padding_mask, dec_padding_mask_s
 
 
 if __name__ == "__main__":
