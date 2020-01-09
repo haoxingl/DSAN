@@ -21,7 +21,7 @@ class DatasetGenerator:
         self.train_data_loaded = False
         self.test_data_loaded = False
 
-    def load_data(self, datatype, no_save=False, load_saved_data=False):
+    def load_data(self, datatype, st_revert=False, no_save=False, load_saved_data=False):
         data_loader = dl(self.d_model, self.dataset, self.local_block_len, self.test_model)
         inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y = data_loader.generate_data(
             datatype,
@@ -32,6 +32,7 @@ class DatasetGenerator:
             self.n_int_before,
             self.n_pred,
             self.local_block_len,
+            st_revert,
             no_save,
             load_saved_data
         )
@@ -55,10 +56,10 @@ class DatasetGenerator:
 
         return dataset, inp_ft.shape
 
-    def build_dataset(self, datatype='train', load_saved_data=False, strategy=None, no_save=None):
+    def build_dataset(self, datatype='train', load_saved_data=False, strategy=None, st_revert=False, no_save=None):
         assert datatype == 'train' or datatype == 'test'
         if datatype == 'train':
-            train_dataset, data_shape = self.load_data(datatype, no_save, load_saved_data or self.train_data_loaded)
+            train_dataset, data_shape = self.load_data(datatype, st_revert, no_save, load_saved_data or self.train_data_loaded)
 
             if not self.train_data_loaded:
                 self.train_data_loaded = True
@@ -85,7 +86,7 @@ class DatasetGenerator:
             if not self.test_data_loaded:
                 self.test_data_loaded = True
 
-                test_set, data_shape = self.load_data(datatype, no_save, load_saved_data)
+                test_set, data_shape = self.load_data(datatype, st_revert, no_save, load_saved_data)
 
                 if self.batch_size > 1:
                     test_set = test_set.batch(self.batch_size)
@@ -109,6 +110,19 @@ def create_look_ahead_mask(size):
     mask = 1 - tf.linalg.band_part(tf.ones((size, size)), -1, 0)
     return mask
 
+def create_padding_mask_enc(inp):
+    oup = tf.math.reduce_sum(inp, axis=-1)
+    shape = tf.shape(oup)
+    oup = tf.reshape(oup, [shape[0], shape[1], -1])
+    oup = oup[:, :, tf.newaxis, tf.newaxis, :]
+    mask = tf.cast(tf.math.equal(oup, 0), tf.float32)
+    return mask
+
+def create_padding_mask_dec(inp):
+    oup = tf.math.reduce_sum(inp, axis=-1)
+    oup = oup[:, :, tf.newaxis, tf.newaxis, tf.newaxis]
+    mask = tf.cast(tf.math.equal(oup, 0), tf.float32)
+    return mask
 
 def create_padding_mask(inp, dec_inp=False):
     inp = tf.math.reduce_sum(inp, axis=-1)

@@ -68,8 +68,9 @@ class ModelTrainer:
         result_output_path = "results/stsan_xl/{}.txt".format(self.model_index)
 
         train_dataset, val_dataset = self.dataset_generator.build_dataset('train', args.load_saved_data, strategy,
-                                                                          args.no_save)
-        test_dataset = self.dataset_generator.build_dataset('test', args.load_saved_data, strategy, args.no_save)
+                                                                          args.st_revert, args.no_save)
+        test_dataset = self.dataset_generator.build_dataset('test', args.load_saved_data, strategy,
+                                                            args.st_revert, args.no_save)
 
         with strategy.scope():
 
@@ -312,7 +313,8 @@ class ModelTrainer:
 
                 if test_model or reshuffle_helper.check(epoch):
                     train_dataset, val_dataset = \
-                        self.dataset_generator.build_dataset('train', args.load_saved_data, strategy, args.no_save)
+                        self.dataset_generator.build_dataset('train', args.load_saved_data, strategy,
+                                                             args.st_revert, args.no_save)
 
                 ckpt_save_path = ckpt_manager.save()
                 ckpt_record = {'epoch': epoch + 1, 'best_epoch': es_helper.get_bestepoch(),

@@ -9,9 +9,9 @@ parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike')
 parser.add_argument('--gpu_ids', default='0, 1, 2, 3, 4, 5, 6, 7', help='indexes of gpus to use')
 parser.add_argument('--index', default=6, help='indexes of model to be trained')
-parser.add_argument('--test_name', default="data_131305", help='indexes of model to be trained')
+parser.add_argument('--test_name', default="data_131505", help='indexes of model to be trained')
 parser.add_argument('--hyp', default=[1], help='indexes of model to be trained')
-parser.add_argument('--run_time', default=1, help='indexes of model to be trained')
+parser.add_argument('--run_time', default=3, help='indexes of model to be trained')
 parser.add_argument('--BATCH_SIZE', default=64)
 parser.add_argument('--local_block_len', default=3)
 parser.add_argument('--remove_old_files', default=True)
@@ -51,9 +51,10 @@ parser.add_argument('--verbose_train', default=1)
 parser.add_argument('--n_hist_week', default=1, help='num of previous weeks to consider')
 parser.add_argument('--n_hist_day', default=3, help='num of previous days to consider')
 parser.add_argument('--n_hist_int', default=1, help='num of time in previous days to consider')
-parser.add_argument('--n_curr_int', default=3, help='num of time in today to consider')
+parser.add_argument('--n_curr_int', default=5, help='num of time in today to consider')
 parser.add_argument('--n_int_before', default=0, help='num of time before predicted time to consider')
 parser.add_argument('--n_pred', default=5, help='future time to predict')
+parser.add_argument('--st_revert', default=False)
 
 args = parser.parse_args()
 
@@ -94,7 +95,7 @@ def remove_oldfiles(model_index):
     except:
         pass
     try:
-        shutil.rmtree('./tensorboard/stsan_xl/{}'.format(model_index), ignore_errors=True)
+        shutil.rmtree('/home/lxx/tensorboard/stsan_xl/{}'.format(model_index), ignore_errors=True)
     except:
         pass
 

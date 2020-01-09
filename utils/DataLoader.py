@@ -41,6 +41,7 @@ class DataLoader:
                       n_int_before=1,  # number of intervals before the predicted interval
                       n_pred=5,
                       local_block_len=None,
+                      st_revert=False,
                       no_save=False,
                       load_saved_data=False):  # loading the previous saved data
 
@@ -329,6 +330,11 @@ class DataLoader:
 
             y = np.array(y, dtype=np.float32)
             y_t = np.array(y_t, dtype=np.float32)
+
+            if st_revert:
+                inp_ft = inp_ft.transpose((0, 2, 3, 1, 4))
+                dec_inp_t = dec_inp_t.transpose((0, 2, 3, 1, 4))
+                y_t = y_t.transpose((0, 2, 3, 1, 4))
 
             """ save the matrices """
             if not self.test_model and not no_save:
