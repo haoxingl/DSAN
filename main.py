@@ -11,7 +11,7 @@ parser.add_argument('--gpu_ids', default='0, 1, 2, 3, 4, 5, 6, 7', help='indexes
 parser.add_argument('--index', default=7, help='indexes of model to be trained')
 parser.add_argument('--test_name', default=None, help='indexes of model to be trained')
 parser.add_argument('--hyp', default=None, help='indexes of model to be trained')
-parser.add_argument('--run_time', default=3, help='indexes of model to be trained')
+parser.add_argument('--run_time', default=5, help='indexes of model to be trained')
 parser.add_argument('--BATCH_SIZE', default=64)
 parser.add_argument('--local_block_len', default=3)
 parser.add_argument('--remove_old_files', default=True)
@@ -54,7 +54,7 @@ parser.add_argument('--n_hist_int', default=1, help='num of time in previous day
 parser.add_argument('--n_curr_int', default=3, help='num of time in today to consider')
 parser.add_argument('--n_int_before', default=0, help='num of time before predicted time to consider')
 parser.add_argument('--n_pred', default=5, help='future time to predict')
-parser.add_argument('--st_revert', default=True)
+parser.add_argument('--st_revert', default=False)
 
 args = parser.parse_args()
 
