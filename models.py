@@ -207,6 +207,7 @@ class Encoder(layers.Layer):
         self.gated_conv = GatedConv(cnn_layers, cnn_filters, seq_len, dpo_rate)
 
         self.encs = [EncoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(num_layers)]
+        self.encs_r = [EncoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(num_layers)]
 
     def call(self, x, ex, cors, training, mask):
         shape = tf.shape(x)
@@ -220,9 +221,13 @@ class Encoder(layers.Layer):
         enc_inp = x_flat + ex_enc + pos_enc
 
         output = self.dropout(enc_inp, training=training)
+        mask_r = tf.transpose(mask, perm=[0, 4, 2, 3, 1])
 
         for i in range(self.num_layers):
             output = self.encs[i](output, training, mask)
+            output_r = tf.transpose(output, perm=[0, 4, 2, 3, 1])
+            output_r = self.encs_r[i](output_r, training, mask_r)
+            output = tf.transpose(output_r, perm=[0, 4, 2, 3, 1])
 
         return output
 
