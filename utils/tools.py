@@ -120,7 +120,6 @@ def create_padding_mask(inp):
 
 def create_padding_mask_tar(inp):
     oup = tf.math.reduce_sum(inp, axis=-1)
-    oup = oup
     mask = tf.cast(tf.math.equal(oup, 0), tf.float32)
     return mask
 
@@ -130,7 +129,7 @@ def create_masks(inp, tar):
     dec_padding_mask = create_padding_mask(inp)[:, :, tf.newaxis, tf.newaxis, :]
     look_ahead_mask_t = create_padding_mask_tar(tar)[:, :, tf.newaxis, tf.newaxis, tf.newaxis]
 
-    look_ahead_mask = create_look_ahead_mask(tf.shape(tar)[1])[tf.newaxis, tf.newaxis, tf.newaxis, :, :]
+    look_ahead_mask = create_look_ahead_mask(tf.shape(tar)[1])
     dec_target_padding_mask = create_padding_mask_tar(tar)[:, tf.newaxis, tf.newaxis, tf.newaxis, :]
     combined_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
 
