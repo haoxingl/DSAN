@@ -137,12 +137,12 @@ class ModelTrainer:
 
             def train_step(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y):
 
-                enc_padding_mask, combined_mask, dec_padding_mask, dec_padding_mask_t = create_masks(inp_ft[..., :2],
+                enc_padding_mask, combined_mask, dec_padding_mask, look_ahead_mask_t = create_masks(inp_ft[..., :2],
                                                                                                      dec_inp_f)
 
                 with tf.GradientTape() as tape:
                     predictions, _ = stsan_xl(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, True,
-                                              enc_padding_mask, combined_mask, dec_padding_mask, dec_padding_mask_t)
+                                              enc_padding_mask, combined_mask, dec_padding_mask, look_ahead_mask_t)
                     if not args.weight_1:
                         loss = loss_function(y, predictions)
                     else:
@@ -168,11 +168,11 @@ class ModelTrainer:
                 targets = dec_inp_f[:, :1, :]
                 for i in range(args.n_pred):
                     tar_inp_ex = dec_inp_ex[:, :i + 1, :]
-                    enc_padding_mask, combined_mask, dec_padding_mask, dec_padding_mask_t = create_masks(
+                    enc_padding_mask, combined_mask, dec_padding_mask, look_ahead_mask_t = create_masks(
                         inp_ft[..., :2], targets)
 
                     predictions, _ = stsan_xl(inp_ft, inp_ex, targets, tar_inp_ex, cors, False,
-                                              enc_padding_mask, combined_mask, dec_padding_mask, dec_padding_mask_t)
+                                              enc_padding_mask, combined_mask, dec_padding_mask, look_ahead_mask_t)
 
                     """ here we filter out all nodes where their real flows are less than 10 """
                     real_in = y[:, i, 0]
