@@ -39,11 +39,11 @@ parser.add_argument('--cnn_filters', default=d_model)
 # parser.add_argument('--weight_f_out', default=0.6)
 # parser.add_argument('--weight_f', default=0.5)
 # parser.add_argument('--weight_t', default=0.5)
-parser.add_argument('--weight_1', default=None)
-parser.add_argument('--weight_2', default=None)
+parser.add_argument('--weight_1', default=3)
+parser.add_argument('--weight_2', default=2)
 
 """ Training settings """
-parser.add_argument('--MAX_EPOCH', default=500)
+parser.add_argument('--MAX_EPOCH', default=200)
 parser.add_argument('--warmup_steps', default=4000)
 parser.add_argument('--verbose_train', default=1)
 
