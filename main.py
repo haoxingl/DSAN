@@ -9,7 +9,7 @@ parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike')
 parser.add_argument('--gpu_ids', default='0, 1, 2, 3, 4, 5, 6, 7', help='indexes of gpus to use')
 parser.add_argument('--index', default=7, help='indexes of model to be trained')
-parser.add_argument('--test_name', default="normal_test", help='indexes of model to be trained')
+parser.add_argument('--test_name', default="new_reshuffle", help='indexes of model to be trained')
 parser.add_argument('--hyp', default=[1], help='indexes of model to be trained')
 parser.add_argument('--run_time', default=3, help='indexes of model to be trained')
 parser.add_argument('--BATCH_SIZE', default=128)
@@ -43,7 +43,7 @@ parser.add_argument('--weight_1', default=3)
 parser.add_argument('--weight_2', default=2)
 
 """ Training settings """
-parser.add_argument('--MAX_EPOCH', default=200)
+parser.add_argument('--MAX_EPOCH', default=150)
 parser.add_argument('--warmup_steps', default=4000)
 parser.add_argument('--verbose_train', default=1)
 
