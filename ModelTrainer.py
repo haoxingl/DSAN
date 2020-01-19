@@ -52,13 +52,13 @@ class ModelTrainer:
             self.f_max = parameters_nyctaxi.f_train_max
             self.es_patiences = [5, args.es_patience]
             self.es_threshold = args.es_threshold
-            self.reshuffle_threshold = [1.0, 1.5]
+            self.reshuffle_threshold = [1.5, 2.0]
             self.test_threshold = 10 / self.f_max
         else:
             self.f_max = parameters_nycbike.f_train_max
             self.es_patiences = [5, args.es_patience]
             self.es_threshold = args.es_threshold
-            self.reshuffle_threshold = [1.0, 1.5]
+            self.reshuffle_threshold = [1.5, 2.0]
             self.test_threshold = 10 / self.f_max
 
     def train(self):
