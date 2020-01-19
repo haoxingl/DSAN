@@ -62,28 +62,7 @@ args = parser.parse_args()
 def write_args(args, m_ind):
     result_output_path = "results/stsan_xl/{}.txt".format(m_ind)
 
-    write_result(result_output_path,
-                 "num_layers: {}, d_model: {}, dff: {}, num_heads: {}, cnn_layers: {}, cnn_filters: {}".format(
-                     args.num_layers,
-                     args.d_model,
-                     args.dff,
-                     args.num_heads,
-                     args.cnn_layers,
-                     args.cnn_filters
-                 ))
-
-    write_result(result_output_path,
-                 "BATCH_SIZE: {}, es_patience: {}".format(args.BATCH_SIZE, args.es_patience))
-
-    write_result(result_output_path,
-                 "n_hist_week: {}, n_hist_day: {}, n_hist_int: {}, n_curr_int: {}, n_int_before: {}, n_pred: {}" \
-                 .format(args.n_hist_week,
-                         args.n_hist_day,
-                         args.n_hist_int,
-                         args.n_curr_int,
-                         args.n_int_before,
-                         args.n_pred
-                         ))
+    write_result(result_output_path, str(args))
 
 def remove_oldfiles(model_index):
     try:
