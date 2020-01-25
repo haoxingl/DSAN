@@ -5,8 +5,8 @@ import tensorflow as tf
 
 
 class DatasetGenerator:
-    def __init__(self, d_model=64, dataset='taxi', batch_size=64, n_hist_week=0, n_hist_day=7, n_hist_int=3,
-                 n_curr_int=1, n_int_before=1, n_pred=5, local_block_len=None, test_model=False):
+    def __init__(self, d_model=64, dataset='taxi', batch_size=64, n_hist_week=1, n_hist_day=3, n_hist_int=1,
+                 n_curr_int=1, n_int_before=0, n_pred=5, local_block_len=3, test_model=False):
         self.d_model = d_model
         self.dataset = dataset
         self.batch_size = batch_size
@@ -23,7 +23,7 @@ class DatasetGenerator:
 
     def load_data(self, datatype, st_revert=False, no_save=False, load_saved_data=False):
         data_loader = dl(self.d_model, self.dataset, self.local_block_len, self.test_model)
-        inp_ft, inp_ex, dec_inp_f, dec_inp_t, dec_inp_ex, cors, y_t, y = data_loader.generate_data(
+        inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y = data_loader.generate_data(
             datatype,
             self.n_hist_week,
             self.n_hist_day,
@@ -40,21 +40,21 @@ class DatasetGenerator:
         dataset = tf.data.Dataset.from_tensor_slices(
             (
                 {
+                    "inp_g": inp_g,
                     "inp_ft": inp_ft,
                     "inp_ex": inp_ex,
                     "dec_inp_f": dec_inp_f,
-                    "dec_inp_t": dec_inp_t,
                     "dec_inp_ex": dec_inp_ex,
-                    "cors": cors
+                    "cors": cors,
+                    "cors_g": cors_g
                 },
                 {
-                    "y_t": y_t,
                     "y": y
                 }
             )
         )
 
-        return dataset, inp_ft.shape
+        return dataset, inp_g.shape
 
     def build_dataset(self, datatype='train', load_saved_data=False, strategy=None, st_revert=False, no_save=None):
         assert datatype == 'train' or datatype == 'test'
@@ -114,7 +114,6 @@ def create_padding_mask(inp):
     oup = tf.math.reduce_sum(inp, axis=-1)
     shape = tf.shape(oup)
     oup = tf.reshape(oup, [shape[0], shape[1], -1])
-    oup = oup
     mask = tf.cast(tf.math.equal(oup, 0), tf.float32)
     return mask
 
@@ -124,19 +123,21 @@ def create_padding_mask_tar(inp):
     return mask
 
 
-def create_masks(inp, tar):
-    enc_padding_mask = create_padding_mask(inp)[:, :, tf.newaxis, tf.newaxis, :]
-    dec_padding_mask = create_padding_mask(inp)[:, :, tf.newaxis, tf.newaxis, :]
+def create_masks(inp_g, inp, tar):
+    padding_mask_g = create_padding_mask(inp_g)[:, :, tf.newaxis, tf.newaxis, :]
+    padding_mask = create_padding_mask(inp)[:, :, tf.newaxis, tf.newaxis, :]
+    # enc_padding_mask = create_padding_mask(inp)[:, :, tf.newaxis, tf.newaxis, :]
+    # dec_padding_mask = create_padding_mask(inp)[:, :, tf.newaxis, tf.newaxis, :]
     look_ahead_mask_t = create_padding_mask_tar(tar)[:, :, tf.newaxis, tf.newaxis, tf.newaxis]
 
     look_ahead_mask = create_look_ahead_mask(tf.shape(tar)[1])
     dec_target_padding_mask = create_padding_mask_tar(tar)[:, tf.newaxis, tf.newaxis, tf.newaxis, :]
     combined_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
 
-    return enc_padding_mask, combined_mask, dec_padding_mask, look_ahead_mask_t
+    return padding_mask, padding_mask_g, combined_mask, look_ahead_mask_t
 
 
 if __name__ == "__main__":
-    dg = DatasetGenerator(local_block_len=3, test_model=100)
-    a, b = dg.build_dataset(no_save=True)
-    c = dg.build_dataset(datatype='test', no_save=True)
+    dg = DatasetGenerator()
+    a, b = dg.build_dataset(load_saved_data=True)
+    c = dg.build_dataset(datatype='test', load_saved_data=True)

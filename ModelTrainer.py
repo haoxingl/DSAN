@@ -127,6 +127,7 @@ class ModelTrainer:
             optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
 
             stsan_xl = STSAN_XL(args.num_layers,
+                                args.l_da,
                                 args.d_model,
                                 args.num_heads,
                                 args.dff,
@@ -135,14 +136,14 @@ class ModelTrainer:
                                 args.seq_len,
                                 args.dropout_rate)
 
-            def train_step(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y):
+            def train_step(inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y):
 
-                enc_padding_mask, combined_mask, dec_padding_mask, look_ahead_mask_t = create_masks(inp_ft[..., :2],
-                                                                                                     dec_inp_f)
+                padding_mask, padding_mask_g, combined_mask, look_ahead_mask_t = \
+                    create_masks(inp_g[..., :2], inp_ft[..., :2], dec_inp_f)
 
                 with tf.GradientTape() as tape:
-                    predictions, _ = stsan_xl(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, True,
-                                              enc_padding_mask, combined_mask, dec_padding_mask, look_ahead_mask_t)
+                    predictions, _ = stsan_xl(inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, True,
+                                              padding_mask, padding_mask_g, combined_mask, look_ahead_mask_t)
                     if not args.weight_1:
                         loss = loss_function(y, predictions)
                     else:
@@ -158,21 +159,21 @@ class ModelTrainer:
                 return loss
 
             @tf.function
-            def distributed_train_step(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y):
+            def distributed_train_step(inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y):
                 per_replica_losses = strategy.experimental_run_v2 \
-                    (train_step, args=(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y,))
+                    (train_step, args=(inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y,))
 
                 return strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None)
 
-            def test_step(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y, final_test=False):
+            def test_step(inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y, final_test=False):
                 targets = dec_inp_f[:, :1, :]
                 for i in range(args.n_pred):
                     tar_inp_ex = dec_inp_ex[:, :i + 1, :]
-                    enc_padding_mask, combined_mask, dec_padding_mask, look_ahead_mask_t = create_masks(
-                        inp_ft[..., :2], targets)
+                    padding_mask, padding_mask_g, combined_mask, look_ahead_mask_t = \
+                        create_masks(inp_g[..., :2], inp_ft[..., :2], targets)
 
-                    predictions, _ = stsan_xl(inp_ft, inp_ex, targets, tar_inp_ex, cors, False,
-                                              enc_padding_mask, combined_mask, dec_padding_mask, look_ahead_mask_t)
+                    predictions, _ = stsan_xl(inp_g, inp_ft, inp_ex, targets, tar_inp_ex, cors, cors_g, False,
+                                              padding_mask, padding_mask_g, combined_mask, look_ahead_mask_t)
 
                     """ here we filter out all nodes where their real flows are less than 10 """
                     real_in = y[:, i, 0]
@@ -194,9 +195,9 @@ class ModelTrainer:
                     targets = tf.concat([targets, predictions[:, -1:, :]], axis=-2)
 
             @tf.function
-            def distributed_test_step(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y, final_test=False):
+            def distributed_test_step(inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y, final_test):
                 return strategy.experimental_run_v2(test_step, args=(
-                    inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y, final_test,))
+                    inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y, final_test,))
 
             def evaluate(eval_dataset, epoch, verbose=1, final_test=False):
                 for i in range(args.n_pred):
@@ -204,15 +205,18 @@ class ModelTrainer:
                     out_rmse_test[i].reset_states()
 
                 for (batch, (inp, tar)) in enumerate(eval_dataset):
+
+                    inp_g = inp["inp_g"]
                     inp_ft = inp["inp_ft"]
                     inp_ex = inp["inp_ex"]
                     dec_inp_f = inp["dec_inp_f"]
                     dec_inp_ex = inp["dec_inp_ex"]
                     cors = inp["cors"]
+                    cors_g = inp["cors_g"]
 
                     y = tar["y"]
 
-                    distributed_test_step(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y, final_test)
+                    distributed_test_step(inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y, final_test)
 
                 if verbose:
                     print_verbose(epoch, final_test)
@@ -264,17 +268,19 @@ class ModelTrainer:
 
                 for (batch, (inp, tar)) in enumerate(train_dataset):
 
+                    inp_g = inp["inp_g"]
                     inp_ft = inp["inp_ft"]
                     inp_ex = inp["inp_ex"]
                     dec_inp_f = inp["dec_inp_f"]
                     dec_inp_ex = inp["dec_inp_ex"]
                     cors = inp["cors"]
+                    cors_g = inp["cors_g"]
 
                     y = tar["y"]
 
                     if args.trace_graph:
                         tf.summary.trace_on(graph=True, profiler=True)
-                    total_loss = distributed_train_step(inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, y)
+                    total_loss = distributed_train_step(inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y)
                     if args.trace_graph:
                         with summary_writer.as_default():
                             tf.summary.trace_export(
