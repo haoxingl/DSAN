@@ -162,8 +162,10 @@ class EncoderLayer(layers.Layer):
 
 
 class DecoderLayer(layers.Layer):
-    def __init__(self, d_model, num_heads, dff, dpo_rate=0.1):
+    def __init__(self, d_model, num_heads, dff, dpo_rate=0.1, revert_q=False):
         super(DecoderLayer, self).__init__()
+
+        self.revert_q = revert_q
 
         self.mha1 = MultiHeadAttention(d_model, num_heads)
         self.mha2 = MultiHeadAttention(d_model, num_heads, self_all=False)
@@ -183,6 +185,9 @@ class DecoderLayer(layers.Layer):
         attn1 = self.dropout1(attn1, training=training)
         out1 = self.layernorm1(attn1 + x)
 
+        if self.revert_q:
+            out1 = tf.transpose(out1, perm=[0, 2, 1, 3])
+
         attn2, attn_weights_block2 = self.mha2(enc_output_x, enc_output_x, out1, padding_mask)
         attn2 = self.dropout2(attn2, training=training)
         out2 = self.layernorm2(attn2 + out1)
@@ -190,6 +195,9 @@ class DecoderLayer(layers.Layer):
         ffn_output = self.ffn(out2)
         ffn_output = self.dropout3(ffn_output, training=training)
         out3 = self.layernorm3(ffn_output + out2)
+
+        if self.revert_q:
+            out3 = tf.transpose(out3, perm=[0, 2, 1, 3])
 
         return out3, attn_weights_block1, attn_weights_block2
 
@@ -240,9 +248,9 @@ class Decoder(layers.Layer):
         self.li_conv = Sequential([layers.Dense(d_model, activation=actfunc) for _ in range(3)])
 
         self.decs_s = [DecoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(num_layers)]
-        self.decs_t = [DecoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(num_layers)]
+        self.decs_t = [DecoderLayer(d_model, num_heads, dff, dpo_rate, revert_q=True) for _ in range(num_layers)]
 
-    def call(self, x, ex, enc_output, training, look_ahead_mask, padding_mask, look_ahead_mask_t):
+    def call(self, x, ex, enc_output, training, look_ahead_mask, padding_mask):
         attention_weights = {}
 
         ex_enc = self.ex_encoder(ex)
@@ -254,7 +262,7 @@ class Decoder(layers.Layer):
 
         x_coded = self.dropout(x_coded, training=training)
         dec_output_s = tf.expand_dims(x_coded, axis=1)
-        dec_output_t = tf.transpose(dec_output_s, perm=[0, 2, 1, 3])
+        dec_output_t = dec_output_s
 
         for i in range(self.num_layers):
             dec_output_s, block1, block2 = self.decs_s[i](dec_output_s, enc_output, training, look_ahead_mask,
@@ -265,11 +273,11 @@ class Decoder(layers.Layer):
         dec_output_s = tf.transpose(dec_output_s, perm=[0, 2, 1, 3])
 
         for i in range(self.num_layers):
-            dec_output_t, block1, block2 = self.decs_t[i](dec_output_t, dec_output_s, training, look_ahead_mask_t, None)
+            dec_output_t, block1, block2 = self.decs_t[i](dec_output_t, dec_output_s, training, look_ahead_mask, None)
             attention_weights['decoder_t_layer{}_block1'.format(i + 1)] = block1
             attention_weights['decoder_t_layer{}_block2'.format(i + 1)] = block2
 
-        dec_output = tf.squeeze(dec_output_t, axis=-2)
+        dec_output = tf.squeeze(dec_output_t, axis=1)
 
         return dec_output, attention_weights
 
@@ -317,7 +325,7 @@ class DynamicAttender(layers.Layer):
 
 
 class STSAN_XL(Model):
-    def __init__(self, num_layers, l_da, d_model, num_heads, dff, cnn_layers, cnn_filters, seq_len, dpo_rate=0.1):
+    def __init__(self, num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters, seq_len, dpo_rate=0.1):
         super(STSAN_XL, self).__init__()
 
         self.dynamic_attender = DynamicAttender(num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters, seq_len, dpo_rate)
@@ -329,7 +337,7 @@ class STSAN_XL(Model):
         self.final_lyr = layers.Dense(2, activation='tanh')
 
     def call(self, inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, training,
-             padding_mask, padding_mask_g, look_ahead_mask, look_ahead_mask_t):
+             padding_mask, padding_mask_g, look_ahead_mask):
 
         enc_output = self.encoder(inp_g, inp_ex, cors_g, training, padding_mask_g)
 
@@ -337,7 +345,7 @@ class STSAN_XL(Model):
 
         dec_output, attention_weights = \
             self.decoder(dec_inp_f, dec_inp_ex, da_output, training,
-                         look_ahead_mask, None, look_ahead_mask_t)
+                         look_ahead_mask, None)
 
         final_output = self.final_lyr(dec_output)
 

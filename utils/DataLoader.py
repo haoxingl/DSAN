@@ -6,12 +6,14 @@ import parameters_nycbike as param_bike
 
 
 class DataLoader:
-    def __init__(self, d_model, dataset='taxi', local_block_len=3, test_model=False):
+    def __init__(self, d_model, dataset='taxi', local_block_len=2, local_block_len_g=4, test_model=False):
         assert dataset == 'taxi' or 'bike'
         self.dataset = dataset
         self.pmt = param_taxi if dataset == 'taxi' else param_bike
+        self.local_block_len = local_block_len
+        self.local_block_len_g = local_block_len_g
         self.cor_gen = CordinateGenerator(self.pmt.len_r, self.pmt.len_c, d_model, local_block_len=local_block_len)
-        self.cor_gen_g = CordinateGenerator(self.pmt.len_r, self.pmt.len_c, d_model)
+        self.cor_gen_g = CordinateGenerator(self.pmt.len_r, self.pmt.len_c, d_model, local_block_len=local_block_len_g)
         self.test_model = test_model
 
     def load_data_f(self, datatype='train'):
@@ -41,7 +43,6 @@ class DataLoader:
                       n_curr_int=1,  # number of intervals we sample in the current day
                       n_int_before=0,  # number of intervals before the predicted interval
                       n_pred=5,
-                      local_block_len=3,
                       st_revert=False,
                       no_save=False,
                       load_saved_data=False):  # loading the previous saved data
@@ -64,6 +65,9 @@ class DataLoader:
 
             return inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y
         else:
+            local_block_len = self.local_block_len
+            local_block_len_g = self.local_block_len_g
+
             print("Loading {} data...".format(datatype))
             """ loading data """
             self.load_data_f(datatype)
@@ -71,6 +75,9 @@ class DataLoader:
             self.load_data_ex(datatype)
             if local_block_len:
                 block_full_len = 2 * local_block_len + 1
+
+            if local_block_len_g:
+                block_full_len_g = 2 * local_block_len_g + 1
 
             if datatype == "train":
                 f_data = self.f_train
@@ -152,6 +159,36 @@ class DataLoader:
                             else:
                                 c_end_local = block_full_len
 
+                        if local_block_len_g:
+                            """ initialize the boundaries of the area of interest """
+                            r_start_g = r - local_block_len_g  # the start location of each AoI
+                            c_start_g = c - local_block_len_g
+
+                            """ adjust the start location if it is on the boundaries of the grid map """
+                            if r_start_g < 0:
+                                r_start_local_g = 0 - r_start_g
+                                r_start_g = 0
+                            else:
+                                r_start_local_g = 0
+                            if c_start_g < 0:
+                                c_start_local_g = 0 - c_start_g
+                                c_start_g = 0
+                            else:
+                                c_start_local_g = 0
+
+                            r_end_g = r + local_block_len_g + 1  # the end location of each AoI
+                            c_end_g = c + local_block_len_g + 1
+                            if r_end_g >= data_shape[1]:
+                                r_end_local_g = block_full_len_g - (r_end_g - data_shape[1])
+                                r_end_g = data_shape[1]
+                            else:
+                                r_end_local_g = block_full_len_g
+                            if c_end_g >= data_shape[2]:
+                                c_end_local_g = block_full_len_g - (c_end_g - data_shape[2])
+                                c_end_g = data_shape[2]
+                            else:
+                                c_end_local_g = block_full_len_g
+
                         """ start the samplings of previous weeks """
                         for week_cnt in range(n_hist_week):
                             s_time_w = int(t - (n_hist_week - week_cnt) * 7 * self.pmt.n_int_day - n_int_before)
@@ -159,14 +196,33 @@ class DataLoader:
                             for int_cnt in range(n_hist_int):
                                 t_now = s_time_w + int_cnt
 
-                                sample_gf = f_data[t_now, ...]
+                                if not local_block_len_g:
+                                    sample_gf = f_data[t_now, ...]
 
-                                sample_gt = np.zeros((data_shape[1], data_shape[2], 2), dtype=np.float32)
+                                    sample_gt = np.zeros((data_shape[1], data_shape[2], 2), dtype=np.float32)
 
-                                sample_gt[..., 0] += t_data[0, t_now, ..., r, c]
-                                sample_gt[..., 0] += t_data[1, t_now, ..., r, c]
-                                sample_gt[..., 1] += t_data[0, t_now, r, c, ...]
-                                sample_gt[..., 1] += t_data[1, t_now, r, c, ...]
+                                    sample_gt[..., 0] += t_data[0, t_now, ..., r, c]
+                                    sample_gt[..., 0] += t_data[1, t_now, ..., r, c]
+                                    sample_gt[..., 1] += t_data[0, t_now, r, c, ...]
+                                    sample_gt[..., 1] += t_data[1, t_now, r, c, ...]
+
+                                else:
+                                    sample_gf = np.zeros((block_full_len_g, block_full_len_g, 2), dtype=np.float32)
+                                    sample_gf[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g, :] = f_data[
+                                                                                                                 t_now,
+                                                                                                                 r_start_g:r_end_g,
+                                                                                                                 c_start_g:c_end_g,
+                                                                                                                 :]
+
+                                    sample_gt = np.zeros((block_full_len_g, block_full_len_g, 2), dtype=np.float32)
+                                    sample_gt[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g, 0] += \
+                                        t_data[0, t_now, r_start_g:r_end_g, c_start_g:c_end_g, r, c]
+                                    sample_gt[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g, 0] += \
+                                        t_data[1, t_now, r_start_g:r_end_g, c_start_g:c_end_g, r, c]
+                                    sample_gt[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g, 1] += \
+                                        t_data[0, t_now, r, c, r_start_g:r_end_g, c_start_g:c_end_g]
+                                    sample_gt[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g, 1] += \
+                                        t_data[1, t_now, r, c, r_start_g:r_end_g, c_start_g:c_end_g]
 
                                 inp_g_sample.append(np.concatenate([sample_gf, sample_gt], axis=-1))
 
@@ -210,14 +266,33 @@ class DataLoader:
                             for int_cnt in range(n_hist_int):
                                 t_now = s_time_d + int_cnt
 
-                                sample_gf = f_data[t_now, ...]
+                                if not local_block_len_g:
+                                    sample_gf = f_data[t_now, ...]
 
-                                sample_gt = np.zeros((data_shape[1], data_shape[2], 2), dtype=np.float32)
+                                    sample_gt = np.zeros((data_shape[1], data_shape[2], 2), dtype=np.float32)
 
-                                sample_gt[..., 0] += t_data[0, t_now, ..., r, c]
-                                sample_gt[..., 0] += t_data[1, t_now, ..., r, c]
-                                sample_gt[..., 1] += t_data[0, t_now, r, c, ...]
-                                sample_gt[..., 1] += t_data[1, t_now, r, c, ...]
+                                    sample_gt[..., 0] += t_data[0, t_now, ..., r, c]
+                                    sample_gt[..., 0] += t_data[1, t_now, ..., r, c]
+                                    sample_gt[..., 1] += t_data[0, t_now, r, c, ...]
+                                    sample_gt[..., 1] += t_data[1, t_now, r, c, ...]
+
+                                else:
+                                    sample_gf = np.zeros((block_full_len_g, block_full_len_g, 2), dtype=np.float32)
+                                    sample_gf[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g, :] = f_data[
+                                                                                                                 t_now,
+                                                                                                                 r_start_g:r_end_g,
+                                                                                                                 c_start_g:c_end_g,
+                                                                                                                 :]
+
+                                    sample_gt = np.zeros((block_full_len_g, block_full_len_g, 2), dtype=np.float32)
+                                    sample_gt[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g, 0] += \
+                                        t_data[0, t_now, r_start_g:r_end_g, c_start_g:c_end_g, r, c]
+                                    sample_gt[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g, 0] += \
+                                        t_data[1, t_now, r_start_g:r_end_g, c_start_g:c_end_g, r, c]
+                                    sample_gt[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g, 1] += \
+                                        t_data[0, t_now, r, c, r_start_g:r_end_g, c_start_g:c_end_g]
+                                    sample_gt[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g, 1] += \
+                                        t_data[1, t_now, r, c, r_start_g:r_end_g, c_start_g:c_end_g]
 
                                 inp_g_sample.append(np.concatenate([sample_gf, sample_gt], axis=-1))
 
@@ -260,14 +335,33 @@ class DataLoader:
                         for int_cnt in range(n_curr_int):
                             t_now = int(t - (n_curr_int - int_cnt))
 
-                            sample_gf = f_data[t_now, ...]
+                            if not local_block_len_g:
+                                sample_gf = f_data[t_now, ...]
 
-                            sample_gt = np.zeros((data_shape[1], data_shape[2], 2), dtype=np.float32)
+                                sample_gt = np.zeros((data_shape[1], data_shape[2], 2), dtype=np.float32)
 
-                            sample_gt[..., 0] += t_data[0, t_now, ..., r, c]
-                            sample_gt[..., 0] += t_data[1, t_now, ..., r, c]
-                            sample_gt[..., 1] += t_data[0, t_now, r, c, ...]
-                            sample_gt[..., 1] += t_data[1, t_now, r, c, ...]
+                                sample_gt[..., 0] += t_data[0, t_now, ..., r, c]
+                                sample_gt[..., 0] += t_data[1, t_now, ..., r, c]
+                                sample_gt[..., 1] += t_data[0, t_now, r, c, ...]
+                                sample_gt[..., 1] += t_data[1, t_now, r, c, ...]
+
+                            else:
+                                sample_gf = np.zeros((block_full_len_g, block_full_len_g, 2), dtype=np.float32)
+                                sample_gf[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g, :] = f_data[
+                                                                                                             t_now,
+                                                                                                             r_start_g:r_end_g,
+                                                                                                             c_start_g:c_end_g,
+                                                                                                             :]
+
+                                sample_gt = np.zeros((block_full_len_g, block_full_len_g, 2), dtype=np.float32)
+                                sample_gt[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g, 0] += \
+                                    t_data[0, t_now, r_start_g:r_end_g, c_start_g:c_end_g, r, c]
+                                sample_gt[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g, 0] += \
+                                    t_data[1, t_now, r_start_g:r_end_g, c_start_g:c_end_g, r, c]
+                                sample_gt[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g, 1] += \
+                                    t_data[0, t_now, r, c, r_start_g:r_end_g, c_start_g:c_end_g]
+                                sample_gt[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g, 1] += \
+                                    t_data[1, t_now, r, c, r_start_g:r_end_g, c_start_g:c_end_g]
 
                             inp_g_sample.append(np.concatenate([sample_gf, sample_gt], axis=-1))
 
@@ -399,8 +493,8 @@ class DataLoader:
 
 if __name__ == "__main__":
     dl = DataLoader(64)
-    # inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y = dl.generate_data()
+    inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y = dl.generate_data()
     inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y = dl.generate_data(datatype='test')
-    # inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
-    inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True, datatype='test')
-
+    inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
+    inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
+                                                                                     datatype='test')

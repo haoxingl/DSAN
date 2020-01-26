@@ -46,6 +46,7 @@ class ModelTrainer:
                                                   args.n_int_before,
                                                   args.n_pred,
                                                   args.local_block_len,
+                                                  args.local_block_len_g,
                                                   args.test_model)
 
         if args.dataset == 'taxi':
@@ -127,7 +128,6 @@ class ModelTrainer:
             optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
 
             stsan_xl = STSAN_XL(args.num_layers,
-                                args.l_da,
                                 args.d_model,
                                 args.num_heads,
                                 args.dff,
@@ -138,12 +138,12 @@ class ModelTrainer:
 
             def train_step(inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y):
 
-                padding_mask, padding_mask_g, combined_mask, look_ahead_mask_t = \
+                padding_mask, padding_mask_g, combined_mask, = \
                     create_masks(inp_g[..., :2], inp_ft[..., :2], dec_inp_f)
 
                 with tf.GradientTape() as tape:
                     predictions, _ = stsan_xl(inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, True,
-                                              padding_mask, padding_mask_g, combined_mask, look_ahead_mask_t)
+                                              padding_mask, padding_mask_g, combined_mask)
                     if not args.weight_1:
                         loss = loss_function(y, predictions)
                     else:
@@ -169,11 +169,11 @@ class ModelTrainer:
                 targets = dec_inp_f[:, :1, :]
                 for i in range(args.n_pred):
                     tar_inp_ex = dec_inp_ex[:, :i + 1, :]
-                    padding_mask, padding_mask_g, combined_mask, look_ahead_mask_t = \
+                    padding_mask, padding_mask_g, combined_mask = \
                         create_masks(inp_g[..., :2], inp_ft[..., :2], targets)
 
                     predictions, _ = stsan_xl(inp_g, inp_ft, inp_ex, targets, tar_inp_ex, cors, cors_g, False,
-                                              padding_mask, padding_mask_g, combined_mask, look_ahead_mask_t)
+                                              padding_mask, padding_mask_g, combined_mask)
 
                     """ here we filter out all nodes where their real flows are less than 10 """
                     real_in = y[:, i, 0]
@@ -253,11 +253,14 @@ class ModelTrainer:
 
             write_result(result_output_path, "Start training...\n")
 
-            for epoch in range(last_epoch, args.MAX_EPOCH):
+            for epoch in range(last_epoch, args.MAX_EPOCH + 1):
 
-                if es_flag:
+                if es_flag or epoch == args.MAX_EPOCH:
                     print("Early stoping...")
-                    ckpt.restore(ckpt_manager.checkpoints[0])
+                    if es_flag:
+                        ckpt.restore(ckpt_manager.checkpoints[0])
+                    else:
+                        ckpt.restore(ckpt_manager.checkpoints[es_helper.get_bestepoch() - epoch - 1])
                     print('Checkpoint restored!! At epoch {}\n'.format(es_helper.get_bestepoch()))
                     break
 

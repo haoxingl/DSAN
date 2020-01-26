@@ -6,7 +6,7 @@ import tensorflow as tf
 
 class DatasetGenerator:
     def __init__(self, d_model=64, dataset='taxi', batch_size=64, n_hist_week=1, n_hist_day=3, n_hist_int=1,
-                 n_curr_int=1, n_int_before=0, n_pred=5, local_block_len=3, test_model=False):
+                 n_curr_int=1, n_int_before=0, n_pred=5, local_block_len=2, local_block_len_g=4, test_model=False):
         self.d_model = d_model
         self.dataset = dataset
         self.batch_size = batch_size
@@ -18,11 +18,12 @@ class DatasetGenerator:
         self.n_pred = n_pred
         self.test_model = test_model
         self.local_block_len = local_block_len
+        self.local_block_len_g = local_block_len_g
         self.train_data_loaded = False
         self.test_data_loaded = False
 
     def load_data(self, datatype, st_revert=False, no_save=False, load_saved_data=False):
-        data_loader = dl(self.d_model, self.dataset, self.local_block_len, self.test_model)
+        data_loader = dl(self.d_model, self.dataset, self.local_block_len, self.local_block_len_g, self.test_model)
         inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y = data_loader.generate_data(
             datatype,
             self.n_hist_week,
@@ -31,7 +32,6 @@ class DatasetGenerator:
             self.n_curr_int,
             self.n_int_before,
             self.n_pred,
-            self.local_block_len,
             st_revert,
             no_save,
             load_saved_data
@@ -128,14 +128,13 @@ def create_masks(inp_g, inp, tar):
     padding_mask = create_padding_mask(inp)[:, :, tf.newaxis, tf.newaxis, :]
     # enc_padding_mask = create_padding_mask(inp)[:, :, tf.newaxis, tf.newaxis, :]
     # dec_padding_mask = create_padding_mask(inp)[:, :, tf.newaxis, tf.newaxis, :]
-    look_ahead_mask_t = create_padding_mask_tar(tar)[:, :, tf.newaxis, tf.newaxis, tf.newaxis]
+    # look_ahead_mask_t = create_padding_mask_tar(tar)[:, :, tf.newaxis, tf.newaxis, tf.newaxis]
 
     look_ahead_mask = create_look_ahead_mask(tf.shape(tar)[1])
     dec_target_padding_mask = create_padding_mask_tar(tar)[:, tf.newaxis, tf.newaxis, tf.newaxis, :]
     combined_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
 
-    return padding_mask, padding_mask_g, combined_mask, look_ahead_mask_t
-
+    return padding_mask, padding_mask_g, combined_mask
 
 if __name__ == "__main__":
     dg = DatasetGenerator()
