@@ -282,55 +282,49 @@ class Decoder(layers.Layer):
         return dec_output, attention_weights
 
 
-class DynamicAttender(layers.Layer):
+class Distiller(layers.Layer):
     def __init__(self, num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters, seq_len, dpo_rate=0.1):
-        super(DynamicAttender, self).__init__()
+        super(Distiller, self).__init__()
 
         self.d_model = d_model
         self.num_layers = num_layers
 
         self.ex_encoder = ex_encoding(d_model, dff)
         self.dropout = layers.Dropout(dpo_rate)
-        # self.dropout_g = layers.Dropout(dpo_rate)
 
         self.gated_conv = GatedConv(cnn_layers, cnn_filters, seq_len, dpo_rate)
-        # self.gated_conv_g = GatedConv(cnn_layers, cnn_filters, seq_len, dpo_rate)
 
-        self.attenders = [DecoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(num_layers)]
+        self.dstls = [DecoderLayer(d_model, num_heads, dff, dpo_rate) for _ in range(num_layers)]
 
-    def call(self, x, ex, x_g, cors, training, padding_mask, padding_mask_g):
+    def call(self, x, ex, x_global, cors, training, padding_mask, padding_mask_g):
+        attention_weights = {}
         shape = tf.shape(x)
-        # shape_g = tf.shape(x_g)
 
         ex_enc = tf.expand_dims(self.ex_encoder(ex), axis=2)
         pos_enc = tf.expand_dims(cors, axis=1)
-        # pos_enc_g = tf.expand_dims(cors_g, axis=1)
 
         x_gated = self.gated_conv(x, training)
-        # x_gated_g = self.gated_conv(x_g, training)
         x_gated *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
-        # x_gated_g *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
         x_flat = tf.reshape(x_gated, [shape[0], shape[1], -1, self.d_model])
-        # x_flat_g = tf.reshape(x_gated_g, [shape_g[0], shape_g[1], -1, self.d_model])
         input = x_flat + ex_enc + pos_enc
-        # input_g = x_flat_g + ex_enc + pos_enc_g
 
         output = self.dropout(input, training=training)
-        # input_g = self.dropout_g(input_g, training=training)
 
         for i in range(self.num_layers):
-            output, _, _ = self.attenders[i](output, x_g, training, padding_mask, padding_mask_g)
+            output, block1, block2 = self.dstls[i](output, x_global, training, padding_mask, padding_mask_g)
+            attention_weights['distiller_layer{}_block1'.format(i + 1)] = block1
+            attention_weights['distiller_layer{}_block2'.format(i + 1)] = block2
 
-        return output
+        return output, attention_weights
 
 
 class STSAN_XL(Model):
     def __init__(self, num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters, seq_len, dpo_rate=0.1):
         super(STSAN_XL, self).__init__()
 
-        self.dynamic_attender = DynamicAttender(num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters, seq_len, dpo_rate)
-
         self.encoder = Encoder(num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters, seq_len, dpo_rate)
+
+        self.distiller = Distiller(num_layers, d_model, num_heads, dff, cnn_layers, cnn_filters, seq_len, dpo_rate)
 
         self.decoder = Decoder(num_layers, d_model, num_heads, dff, dpo_rate)
 
@@ -341,12 +335,12 @@ class STSAN_XL(Model):
 
         enc_output = self.encoder(inp_g, inp_ex, cors_g, training, padding_mask_g)
 
-        da_output = self.dynamic_attender(inp_ft, inp_ex, enc_output, cors, training, padding_mask, padding_mask_g)
+        dstl_output, attention_weights_dstl = \
+            self.distiller(inp_ft, inp_ex, enc_output, cors, training, padding_mask, padding_mask_g)
 
-        dec_output, attention_weights = \
-            self.decoder(dec_inp_f, dec_inp_ex, da_output, training,
-                         look_ahead_mask, None)
+        dec_output, attention_weights_dec = \
+            self.decoder(dec_inp_f, dec_inp_ex, dstl_output, training, look_ahead_mask, None)
 
         final_output = self.final_lyr(dec_output)
 
-        return final_output, attention_weights
+        return final_output, attention_weights_dstl, attention_weights_dec

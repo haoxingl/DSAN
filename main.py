@@ -9,14 +9,14 @@ parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike')
 parser.add_argument('--gpu_ids', default='0, 1, 2, 3, 4, 5, 6, 7', help='indexes of gpus to use')
 parser.add_argument('--index', default=7, help='indexes of model to be trained')
-parser.add_argument('--test_name', default="num_layers", help='indexes of model to be trained')
-parser.add_argument('--hyp', default=[3, 2, 4], help='indexes of model to be trained')
+parser.add_argument('--test_name', default="n_pred", help='indexes of model to be trained')
+parser.add_argument('--hyp', default=[12], help='indexes of model to be trained')
 parser.add_argument('--run_time', default=3, help='indexes of model to be trained')
 parser.add_argument('--BATCH_SIZE', default=64)
-parser.add_argument('--local_block_len', default=2)
-parser.add_argument('--local_block_len_g', default=4)
+parser.add_argument('--local_block_len', default=3)
+parser.add_argument('--local_block_len_g', default=5)
 parser.add_argument('--remove_old_files', default=True)
-parser.add_argument('--load_saved_data', default=True)
+parser.add_argument('--load_saved_data', default=False)
 parser.add_argument('--no_save', default=False)
 parser.add_argument('--es_patience', default=10)
 parser.add_argument('--es_threshold', default=0.01)
@@ -40,7 +40,7 @@ parser.add_argument('--cnn_filters', default=d_model)
 # parser.add_argument('--weight_f_out', default=0.6)
 # parser.add_argument('--weight_f', default=0.5)
 # parser.add_argument('--weight_t', default=0.5)
-parser.add_argument('--weight_1', default=2)
+parser.add_argument('--weight_1', default=9)
 parser.add_argument('--weight_2', default=1)
 
 """ Training settings """
@@ -54,7 +54,7 @@ parser.add_argument('--n_hist_day', default=3, help='num of previous days to con
 parser.add_argument('--n_hist_int', default=1, help='num of time in previous days to consider')
 parser.add_argument('--n_curr_int', default=1, help='num of time in today to consider')
 parser.add_argument('--n_int_before', default=0, help='num of time before predicted time to consider')
-parser.add_argument('--n_pred', default=5, help='future time to predict')
+parser.add_argument('--n_pred', default=12, help='future time to predict')
 parser.add_argument('--st_revert', default=False)
 
 args = parser.parse_args()
@@ -113,6 +113,8 @@ if __name__ == "__main__":
 
                 args.load_saved_data = True
                 K.clear_session()
+
+            args.load_saved_data = False
     else:
         for cnt in range(args.run_time):
             model_index = args.dataset + '_{}_{}'.format(args.index, cnt + 1)

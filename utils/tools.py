@@ -6,7 +6,7 @@ import tensorflow as tf
 
 class DatasetGenerator:
     def __init__(self, d_model=64, dataset='taxi', batch_size=64, n_hist_week=1, n_hist_day=3, n_hist_int=1,
-                 n_curr_int=1, n_int_before=0, n_pred=5, local_block_len=2, local_block_len_g=4, test_model=False):
+                 n_curr_int=1, n_int_before=0, n_pred=6, local_block_len=3, local_block_len_g=5, test_model=False):
         self.d_model = d_model
         self.dataset = dataset
         self.batch_size = batch_size
@@ -16,11 +16,10 @@ class DatasetGenerator:
         self.n_curr_int = n_curr_int
         self.n_int_before = n_int_before
         self.n_pred = n_pred
-        self.test_model = test_model
         self.local_block_len = local_block_len
         self.local_block_len_g = local_block_len_g
+        self.test_model = test_model
         self.train_data_loaded = False
-        self.test_data_loaded = False
 
     def load_data(self, datatype, st_revert=False, no_save=False, load_saved_data=False):
         data_loader = dl(self.d_model, self.dataset, self.local_block_len, self.local_block_len_g, self.test_model)
@@ -67,10 +66,11 @@ class DatasetGenerator:
             data_size = int(data_shape[0])
             train_size = int(data_shape[0] * 0.8)
 
-            dataset_cached = train_dataset.cache()
-            dataset_shuffled = dataset_cached.shuffle(data_size, reshuffle_each_iteration=False)
+            # dataset_cached = train_dataset.cache()
+            # dataset_shuffled = dataset_cached.shuffle(data_size, reshuffle_each_iteration=False)
+            dataset_shuffled = train_dataset.shuffle(data_size, reshuffle_each_iteration=False)
+            train_set = dataset_shuffled.take(train_size)
             val_set = dataset_shuffled.skip(train_size)
-            train_set = dataset_shuffled.take(train_size).shuffle(train_size)
             train_set = train_set.batch(self.batch_size)
             val_set = val_set.batch(self.batch_size)
             # train_set = train_set.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
@@ -83,15 +83,12 @@ class DatasetGenerator:
                 return train_set, val_set
 
         else:
-            if not self.test_data_loaded:
-                self.test_data_loaded = True
+            test_set, data_shape = self.load_data(datatype, st_revert, no_save, load_saved_data)
 
-                test_set, data_shape = self.load_data(datatype, st_revert, no_save, load_saved_data)
-
-                if self.batch_size > 1:
-                    test_set = test_set.batch(self.batch_size)
-                else:
-                    test_set = test_set.shuffle(int(data_shape[0])).batch(self.batch_size)
+            if self.batch_size > 1:
+                test_set = test_set.batch(self.batch_size)
+            else:
+                test_set = test_set.shuffle(int(data_shape[0])).batch(1)
 
             if strategy:
                 return strategy.experimental_distribute_dataset(test_set)
@@ -126,15 +123,12 @@ def create_padding_mask_tar(inp):
 def create_masks(inp_g, inp, tar):
     padding_mask_g = create_padding_mask(inp_g)[:, :, tf.newaxis, tf.newaxis, :]
     padding_mask = create_padding_mask(inp)[:, :, tf.newaxis, tf.newaxis, :]
-    # enc_padding_mask = create_padding_mask(inp)[:, :, tf.newaxis, tf.newaxis, :]
-    # dec_padding_mask = create_padding_mask(inp)[:, :, tf.newaxis, tf.newaxis, :]
-    # look_ahead_mask_t = create_padding_mask_tar(tar)[:, :, tf.newaxis, tf.newaxis, tf.newaxis]
 
     look_ahead_mask = create_look_ahead_mask(tf.shape(tar)[1])
     dec_target_padding_mask = create_padding_mask_tar(tar)[:, tf.newaxis, tf.newaxis, tf.newaxis, :]
     combined_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
 
-    return padding_mask, padding_mask_g, combined_mask
+    return padding_mask_g, padding_mask, combined_mask
 
 if __name__ == "__main__":
     dg = DatasetGenerator()

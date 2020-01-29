@@ -6,7 +6,7 @@ import parameters_nycbike as param_bike
 
 
 class DataLoader:
-    def __init__(self, d_model, dataset='taxi', local_block_len=2, local_block_len_g=4, test_model=False):
+    def __init__(self, d_model, dataset='taxi', local_block_len=3, local_block_len_g=5, test_model=False):
         assert dataset == 'taxi' or 'bike'
         self.dataset = dataset
         self.pmt = param_taxi if dataset == 'taxi' else param_bike
@@ -42,7 +42,7 @@ class DataLoader:
                       n_hist_int=1,  # number of intervals we sample in the previous weeks, days
                       n_curr_int=1,  # number of intervals we sample in the current day
                       n_int_before=0,  # number of intervals before the predicted interval
-                      n_pred=5,
+                      n_pred=6,
                       st_revert=False,
                       no_save=False,
                       load_saved_data=False):  # loading the previous saved data

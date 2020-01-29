@@ -15,13 +15,13 @@ import parameters_nyctaxi
 import parameters_nycbike
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
+
 if gpus:
     try:
         for gpu in gpus:
             tf.config.experimental.set_memory_growth(gpu, True)
     except RuntimeError as e:
         print(e)
-
 
 class ModelTrainer:
     def __init__(self, model_index, args):
@@ -53,13 +53,13 @@ class ModelTrainer:
             self.f_max = parameters_nyctaxi.f_train_max
             self.es_patiences = [5, args.es_patience]
             self.es_threshold = args.es_threshold
-            self.reshuffle_threshold = [1.5, 2.0]
+            self.reshuffle_threshold = [3.5]
             self.test_threshold = 10 / self.f_max
         else:
             self.f_max = parameters_nycbike.f_train_max
             self.es_patiences = [5, args.es_patience]
             self.es_threshold = args.es_threshold
-            self.reshuffle_threshold = [1.5, 2.0]
+            self.reshuffle_threshold = [3.5]
             self.test_threshold = 10 / self.f_max
 
     def train(self):
@@ -138,11 +138,11 @@ class ModelTrainer:
 
             def train_step(inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y):
 
-                padding_mask, padding_mask_g, combined_mask, = \
+                padding_mask_g, padding_mask, combined_mask = \
                     create_masks(inp_g[..., :2], inp_ft[..., :2], dec_inp_f)
 
                 with tf.GradientTape() as tape:
-                    predictions, _ = stsan_xl(inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, True,
+                    predictions, _, _ = stsan_xl(inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, True,
                                               padding_mask, padding_mask_g, combined_mask)
                     if not args.weight_1:
                         loss = loss_function(y, predictions)
@@ -169,10 +169,10 @@ class ModelTrainer:
                 targets = dec_inp_f[:, :1, :]
                 for i in range(args.n_pred):
                     tar_inp_ex = dec_inp_ex[:, :i + 1, :]
-                    padding_mask, padding_mask_g, combined_mask = \
+                    padding_mask_g, padding_mask, combined_mask = \
                         create_masks(inp_g[..., :2], inp_ft[..., :2], targets)
 
-                    predictions, _ = stsan_xl(inp_g, inp_ft, inp_ex, targets, tar_inp_ex, cors, cors_g, False,
+                    predictions, _, _ = stsan_xl(inp_g, inp_ft, inp_ex, targets, tar_inp_ex, cors, cors_g, False,
                                               padding_mask, padding_mask_g, combined_mask)
 
                     """ here we filter out all nodes where their real flows are less than 10 """
