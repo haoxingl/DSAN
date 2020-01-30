@@ -6,7 +6,7 @@ import parameters_nycbike as param_bike
 
 
 class DataLoader:
-    def __init__(self, d_model, dataset='taxi', local_block_len=3, local_block_len_g=5, test_model=False):
+    def __init__(self, d_model, dataset='taxi', local_block_len=3, local_block_len_g=5, pre_shuffle=True, test_model=False):
         assert dataset == 'taxi' or 'bike'
         self.dataset = dataset
         self.pmt = param_taxi if dataset == 'taxi' else param_bike
@@ -14,6 +14,7 @@ class DataLoader:
         self.local_block_len_g = local_block_len_g
         self.cor_gen = CordinateGenerator(self.pmt.len_r, self.pmt.len_c, d_model, local_block_len=local_block_len)
         self.cor_gen_g = CordinateGenerator(self.pmt.len_r, self.pmt.len_c, d_model, local_block_len=local_block_len_g)
+        self.pre_shuffle = pre_shuffle
         self.test_model = test_model
 
     def load_data_f(self, datatype='train'):
@@ -56,12 +57,27 @@ class DataLoader:
             inp_ft = np.load("data/inp_ft_{}_{}.npz".format(self.dataset, datatype))['data']
             inp_ex = np.load("data/inp_ex_{}_{}.npz".format(self.dataset, datatype))['data']
             dec_inp_f = np.load("data/dec_inp_f_{}_{}.npz".format(self.dataset, datatype))['data']
-            # dec_inp_t = np.load("data/dec_inp_t_{}_{}.npz".format(self.dataset, datatype))['data']
             dec_inp_ex = np.load("data/dec_inp_ex_{}_{}.npz".format(self.dataset, datatype))['data']
             cors = np.load("data/cors_{}_{}.npz".format(self.dataset, datatype))['data']
             cors_g = np.load("data/cors_g_{}_{}.npz".format(self.dataset, datatype))['data']
-            # y_t = np.load("data/y_t_{}_{}.npz".format(self.dataset, datatype))['data']
             y = np.load("data/y_{}_{}.npz".format(self.dataset, datatype))['data']
+
+            if self.pre_shuffle and datatype == 'train':
+                inp_shape = inp_g.shape[0]
+                train_size = int(inp_shape * 0.8)
+                data_ind = np.random.permutation(inp_shape)
+
+                inp_g = np.split(inp_g[data_ind, ...], (train_size,))
+                inp_ft = np.split(inp_ft[data_ind, ...], (train_size,))
+                inp_ex = np.split(inp_ex[data_ind, ...], (train_size,))
+
+                dec_inp_f = np.split(dec_inp_f[data_ind, ...], (train_size,))
+                dec_inp_ex = np.split(dec_inp_ex[data_ind, ...], (train_size,))
+
+                cors = np.split(cors[data_ind, ...], (train_size,))
+                cors_g = np.split(cors_g[data_ind, ...], (train_size,))
+
+                y = np.split(y[data_ind, ...], (train_size,))
 
             return inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y
         else:
@@ -98,14 +114,12 @@ class DataLoader:
             inp_ex = []
 
             dec_inp_f = []
-            # dec_inp_t = []
             dec_inp_ex = []
 
             cors = []
             cors_g = []
 
             y = []  # ground truth of the inflow and outflow of each node at each time interval
-            # y_t = []  # ground truth of the transitions between each node and its neighbors in the area of interest
 
             assert n_hist_week >= 0 and n_hist_day >= 1
             """ set the start time interval to sample the data"""
@@ -401,26 +415,7 @@ class DataLoader:
                         inp_ft.append(inp_ft_sample)
                         inp_ex.append(inp_ex_sample)
 
-                        # if not local_block_len:
-                        #     dec_inp_t_sample = np.zeros((n_pred, data_shape[1], data_shape[2], 2), dtype=np.float32)
-                        #
-                        #     dec_inp_t_sample[..., 0] += t_data[0, t - 1: t + n_pred - 1, ..., r, c]
-                        #     dec_inp_t_sample[..., 0] += t_data[1, t - 1: t + n_pred - 1, ..., r, c]
-                        #     dec_inp_t_sample[..., 1] += t_data[0, t - 1: t + n_pred - 1, r, c, ...]
-                        #     dec_inp_t_sample[..., 1] += t_data[1, t - 1: t + n_pred - 1, r, c, ...]
-                        # else:
-                        #     dec_inp_t_sample = np.zeros((n_pred, block_full_len, block_full_len, 2), dtype=np.float32)
-                        #     dec_inp_t_sample[:, r_start_local:r_end_local, c_start_local:c_end_local, 0] += \
-                        #         t_data[0, t - 1: t + n_pred - 1, r_start:r_end, c_start:c_end, r, c]
-                        #     dec_inp_t_sample[:, r_start_local:r_end_local, c_start_local:c_end_local, 0] += \
-                        #         t_data[1, t - 1: t + n_pred - 1, r_start:r_end, c_start:c_end, r, c]
-                        #     dec_inp_t_sample[:, r_start_local:r_end_local, c_start_local:c_end_local, 1] += \
-                        #         t_data[0, t - 1: t + n_pred - 1, r, c, r_start:r_end, c_start:c_end]
-                        #     dec_inp_t_sample[:, r_start_local:r_end_local, c_start_local:c_end_local, 1] += \
-                        #         t_data[1, t - 1: t + n_pred - 1, r, c, r_start:r_end, c_start:c_end]
-
                         dec_inp_f.append(f_data[t - 1: t + n_pred - 1, r, c, :])
-                        # dec_inp_t.append(dec_inp_t_sample)
 
                         dec_inp_ex.append(ex_data[t - 1: t + n_pred - 1, :])
 
@@ -429,26 +424,6 @@ class DataLoader:
 
                         """ generating the ground truth for each sample """
                         y.append(f_data[t: t + n_pred, r, c, :])
-
-                        # if not local_block_len:
-                        #     tar_t = np.zeros((n_pred, data_shape[1], data_shape[2], 2), dtype=np.float32)
-                        #
-                        #     tar_t[..., 0] += t_data[0, t: t + n_pred, ..., r, c]
-                        #     tar_t[..., 0] += t_data[1, t: t + n_pred, ..., r, c]
-                        #     tar_t[..., 1] += t_data[0, t: t + n_pred, r, c, ...]
-                        #     tar_t[..., 1] += t_data[1, t: t + n_pred, r, c, ...]
-                        # else:
-                        #     tar_t = np.zeros((n_pred, block_full_len, block_full_len, 2), dtype=np.float32)
-                        #     tar_t[:, r_start_local:r_end_local, c_start_local:c_end_local, 0] += \
-                        #         t_data[0, t - 1: t + n_pred - 1, r_start:r_end, c_start:c_end, r, c]
-                        #     tar_t[:, r_start_local:r_end_local, c_start_local:c_end_local, 0] += \
-                        #         t_data[1, t - 1: t + n_pred - 1, r_start:r_end, c_start:c_end, r, c]
-                        #     tar_t[:, r_start_local:r_end_local, c_start_local:c_end_local, 1] += \
-                        #         t_data[0, t - 1: t + n_pred - 1, r, c, r_start:r_end, c_start:c_end]
-                        #     tar_t[:, r_start_local:r_end_local, c_start_local:c_end_local, 1] += \
-                        #         t_data[1, t - 1: t + n_pred - 1, r, c, r_start:r_end, c_start:c_end]
-                        #
-                        # y_t.append(tar_t)
 
                 if self.test_model and t + 1 - time_start >= self.test_model:
                     break
@@ -459,20 +434,16 @@ class DataLoader:
             inp_ex = np.array(inp_ex, dtype=np.float32)
 
             dec_inp_f = np.array(dec_inp_f, dtype=np.float32)
-            # dec_inp_t = np.array(dec_inp_t, dtype=np.float32)
             dec_inp_ex = np.array(dec_inp_ex, dtype=np.float32)
 
             cors = np.array(cors, dtype=np.float32)
             cors_g = np.array(cors_g, dtype=np.float32)
 
             y = np.array(y, dtype=np.float32)
-            # y_t = np.array(y_t, dtype=np.float32)
 
             if st_revert:
                 inp_g = inp_g.transpose((0, 2, 3, 1, 4))
                 inp_ft = inp_ft.transpose((0, 2, 3, 1, 4))
-                # dec_inp_t = dec_inp_t.transpose((0, 2, 3, 1, 4))
-                # y_t = y_t.transpose((0, 2, 3, 1, 4))
 
             """ save the matrices """
             if not self.test_model and not no_save:
@@ -481,12 +452,27 @@ class DataLoader:
                 np.savez_compressed("data/inp_ft_{}_{}.npz".format(self.dataset, datatype), data=inp_ft)
                 np.savez_compressed("data/inp_ex_{}_{}.npz".format(self.dataset, datatype), data=inp_ex)
                 np.savez_compressed("data/dec_inp_f_{}_{}.npz".format(self.dataset, datatype), data=dec_inp_f)
-                # np.savez_compressed("data/dec_inp_t_{}_{}.npz".format(self.dataset, datatype), data=dec_inp_t)
                 np.savez_compressed("data/dec_inp_ex_{}_{}.npz".format(self.dataset, datatype), data=dec_inp_ex)
                 np.savez_compressed("data/cors_{}_{}.npz".format(self.dataset, datatype), data=cors)
                 np.savez_compressed("data/cors_g_{}_{}.npz".format(self.dataset, datatype), data=cors_g)
-                # np.savez_compressed("data/y_t_{}_{}.npz".format(self.dataset, datatype), data=y_t)
                 np.savez_compressed("data/y_{}_{}.npz".format(self.dataset, datatype), data=y)
+
+            if self.pre_shuffle and datatype == 'train':
+                inp_shape = inp_g.shape[0]
+                train_size = int(inp_shape * 0.8)
+                data_ind = np.random.permutation(inp_shape)
+
+                inp_g = np.split(inp_g[data_ind, ...], (train_size,))
+                inp_ft = np.split(inp_ft[data_ind, ...], (train_size,))
+                inp_ex = np.split(inp_ex[data_ind, ...], (train_size,))
+
+                dec_inp_f = np.split(dec_inp_f[data_ind, ...], (train_size,))
+                dec_inp_ex = np.split(dec_inp_ex[data_ind, ...], (train_size,))
+
+                cors = np.split(cors[data_ind, ...], (train_size,))
+                cors_g = np.split(cors_g[data_ind, ...], (train_size,))
+
+                y = np.split(y[data_ind, ...], (train_size,))
 
             return inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y
 

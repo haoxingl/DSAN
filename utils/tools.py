@@ -6,7 +6,7 @@ import tensorflow as tf
 
 class DatasetGenerator:
     def __init__(self, d_model=64, dataset='taxi', batch_size=64, n_hist_week=1, n_hist_day=3, n_hist_int=1,
-                 n_curr_int=1, n_int_before=0, n_pred=6, local_block_len=3, local_block_len_g=5, test_model=False):
+                 n_curr_int=1, n_int_before=0, n_pred=6, local_block_len=3, local_block_len_g=5, pre_shuffle=True, test_model=False):
         self.d_model = d_model
         self.dataset = dataset
         self.batch_size = batch_size
@@ -18,11 +18,12 @@ class DatasetGenerator:
         self.n_pred = n_pred
         self.local_block_len = local_block_len
         self.local_block_len_g = local_block_len_g
+        self.pre_shuffle = pre_shuffle
         self.test_model = test_model
         self.train_data_loaded = False
 
     def load_data(self, datatype, st_revert=False, no_save=False, load_saved_data=False):
-        data_loader = dl(self.d_model, self.dataset, self.local_block_len, self.local_block_len_g, self.test_model)
+        data_loader = dl(self.d_model, self.dataset, self.local_block_len, self.local_block_len_g, self.pre_shuffle, self.test_model)
         inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, y = data_loader.generate_data(
             datatype,
             self.n_hist_week,
@@ -36,45 +37,79 @@ class DatasetGenerator:
             load_saved_data
         )
 
-        dataset = tf.data.Dataset.from_tensor_slices(
-            (
-                {
-                    "inp_g": inp_g,
-                    "inp_ft": inp_ft,
-                    "inp_ex": inp_ex,
-                    "dec_inp_f": dec_inp_f,
-                    "dec_inp_ex": dec_inp_ex,
-                    "cors": cors,
-                    "cors_g": cors_g
-                },
-                {
-                    "y": y
-                }
+        if self.pre_shuffle and datatype == 'train':
+            train_set = tf.data.Dataset.from_tensor_slices(
+                (
+                    {
+                        "inp_g": inp_g[0],
+                        "inp_ft": inp_ft[0],
+                        "inp_ex": inp_ex[0],
+                        "dec_inp_f": dec_inp_f[0],
+                        "dec_inp_ex": dec_inp_ex[0],
+                        "cors": cors[0],
+                        "cors_g": cors_g[0]
+                    },
+                    {
+                        "y": y[0]
+                    }
+                )
             )
-        )
 
-        return dataset, inp_g.shape
+            val_set = tf.data.Dataset.from_tensor_slices(
+                (
+                    {
+                        "inp_g": inp_g[1],
+                        "inp_ft": inp_ft[1],
+                        "inp_ex": inp_ex[1],
+                        "dec_inp_f": dec_inp_f[1],
+                        "dec_inp_ex": dec_inp_ex[1],
+                        "cors": cors[1],
+                        "cors_g": cors_g[1]
+                    },
+                    {
+                        "y": y[1]
+                    }
+                )
+            )
+
+            return [train_set, val_set], inp_g[0].shape[0]
+
+        else:
+            dataset = tf.data.Dataset.from_tensor_slices(
+                (
+                    {
+                        "inp_g": inp_g,
+                        "inp_ft": inp_ft,
+                        "inp_ex": inp_ex,
+                        "dec_inp_f": dec_inp_f,
+                        "dec_inp_ex": dec_inp_ex,
+                        "cors": cors,
+                        "cors_g": cors_g
+                    },
+                    {
+                        "y": y
+                    }
+                )
+            )
+
+            return dataset, inp_g.shape[0]
 
     def build_dataset(self, datatype='train', load_saved_data=False, strategy=None, st_revert=False, no_save=None):
         assert datatype == 'train' or datatype == 'test'
         if datatype == 'train':
-            train_dataset, data_shape = self.load_data(datatype, st_revert, no_save, load_saved_data or self.train_data_loaded)
+            train_dataset, train_size = self.load_data(datatype, st_revert, no_save, load_saved_data or self.train_data_loaded)
 
             if not self.train_data_loaded:
                 self.train_data_loaded = True
-
-            data_size = int(data_shape[0])
-            train_size = int(data_shape[0] * 0.8)
-
-            # dataset_cached = train_dataset.cache()
-            # dataset_shuffled = dataset_cached.shuffle(data_size, reshuffle_each_iteration=False)
-            dataset_shuffled = train_dataset.shuffle(data_size, reshuffle_each_iteration=False)
-            train_set = dataset_shuffled.take(train_size)
-            val_set = dataset_shuffled.skip(train_size)
-            train_set = train_set.batch(self.batch_size)
-            val_set = val_set.batch(self.batch_size)
-            # train_set = train_set.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
-            # val_set = val_set.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+            if self.pre_shuffle:
+                train_set = train_dataset[0].shuffle(train_size).batch(self.batch_size).cache().prefetch(tf.data.experimental.AUTOTUNE)
+                val_set = train_dataset[1].batch(self.batch_size).cache().prefetch(tf.data.experimental.AUTOTUNE)
+            else:
+                dataset_shuffled = train_dataset.shuffle(train_size, reshuffle_each_iteration=False)
+                train_set = dataset_shuffled.take(int(train_size * 0.8))
+                val_set = dataset_shuffled.skip(int(train_size * 0.8))
+                train_set = train_set.batch(self.batch_size)
+                val_set = val_set.batch(self.batch_size)
 
             if strategy:
                 return strategy.experimental_distribute_dataset(train_set), strategy.experimental_distribute_dataset(
@@ -83,12 +118,12 @@ class DatasetGenerator:
                 return train_set, val_set
 
         else:
-            test_set, data_shape = self.load_data(datatype, st_revert, no_save, load_saved_data)
+            test_set, data_size = self.load_data(datatype, st_revert, no_save, load_saved_data)
 
             if self.batch_size > 1:
                 test_set = test_set.batch(self.batch_size)
             else:
-                test_set = test_set.shuffle(int(data_shape[0])).batch(1)
+                test_set = test_set.shuffle(data_size).batch(1)
 
             if strategy:
                 return strategy.experimental_distribute_dataset(test_set)

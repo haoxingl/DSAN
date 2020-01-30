@@ -47,19 +47,20 @@ class ModelTrainer:
                                                   args.n_pred,
                                                   args.local_block_len,
                                                   args.local_block_len_g,
+                                                  args.pre_shuffle,
                                                   args.test_model)
 
         if args.dataset == 'taxi':
             self.f_max = parameters_nyctaxi.f_train_max
             self.es_patiences = [5, args.es_patience]
             self.es_threshold = args.es_threshold
-            self.reshuffle_threshold = [3.5]
+            self.reshuffle_threshold = [3.0]
             self.test_threshold = 10 / self.f_max
         else:
             self.f_max = parameters_nycbike.f_train_max
             self.es_patiences = [5, args.es_patience]
             self.es_threshold = args.es_threshold
-            self.reshuffle_threshold = [3.5]
+            self.reshuffle_threshold = [3.0]
             self.test_threshold = 10 / self.f_max
 
     def train(self):
