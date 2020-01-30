@@ -6,7 +6,7 @@ from utils.tools import DatasetGenerator, write_result, create_masks
 from utils.CustomSchedule import CustomSchedule
 from utils.EarlystopHelper import EarlystopHelper
 from utils.ReshuffleHelper import ReshuffleHelper
-from utils.Metrics import MAE
+from utils.Metrics import MAE, MAPE
 from models import STSAN_XL
 
 import tensorflow as tf
@@ -84,6 +84,7 @@ class ModelTrainer:
                 if final_test:
                     template_rmse = "RMSE(in/out):"
                     template_mae = "MAE(in/out):"
+                    template_mape = "MAPE(in/out):"
                     for i in range(args.n_pred):
                         template_rmse += ' {}. {:.2f}({:.6f})/{:.2f}({:.6f})'.format(
                             i + 1,
@@ -99,7 +100,12 @@ class ModelTrainer:
                             out_mae_test[i].result() * self.f_max,
                             out_mae_test[i].result()
                         )
-                    template = "Final:\n" + template_rmse + "\n" + template_mae
+                        template_mape += ' {}. {:.2f}/{:.2f}'.format(
+                            i + 1,
+                            in_mape_test[i].result(),
+                            out_mape_test[i].result()
+                        )
+                    template = "Final:\n" + template_rmse + "\n" + template_mae + "\n" + template_mape
                     write_result(result_output_path, template)
                 else:
                     template = "Epoch {} RMSE(in/out):".format(epoch + 1)
@@ -123,6 +129,8 @@ class ModelTrainer:
 
             in_mae_test = [MAE() for _ in range(args.n_pred)]
             out_mae_test = [MAE() for _ in range(args.n_pred)]
+            in_mape_test = [MAPE() for _ in range(args.n_pred)]
+            out_mape_test = [MAPE() for _ in range(args.n_pred)]
 
             learning_rate = CustomSchedule(args.d_model, args.warmup_steps)
 
@@ -192,6 +200,8 @@ class ModelTrainer:
                     if final_test:
                         in_mae_test[i](masked_real_in, masked_pred_in)
                         out_mae_test[i](masked_real_out, masked_pred_out)
+                        in_mape_test[i](masked_real_in, masked_pred_in)
+                        out_mape_test[i](masked_real_out, masked_pred_out)
 
                     targets = tf.concat([targets, predictions[:, -1:, :]], axis=-2)
 
