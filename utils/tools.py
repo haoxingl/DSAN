@@ -108,8 +108,8 @@ class DatasetGenerator:
                 dataset_shuffled = train_dataset.shuffle(train_size, reshuffle_each_iteration=False)
                 train_set = dataset_shuffled.take(int(train_size * 0.8))
                 val_set = dataset_shuffled.skip(int(train_size * 0.8))
-                train_set = train_set.batch(self.batch_size)
-                val_set = val_set.batch(self.batch_size)
+                train_set = train_set.batch(self.batch_size).cache().prefetch(tf.data.experimental.AUTOTUNE)
+                val_set = val_set.batch(self.batch_size).cache().prefetch(tf.data.experimental.AUTOTUNE)
 
             if strategy:
                 return strategy.experimental_distribute_dataset(train_set), strategy.experimental_distribute_dataset(

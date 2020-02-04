@@ -35,6 +35,10 @@ class ModelTrainer:
         self.model_index = model_index
         self.args = args
         self.args.seq_len = (args.n_hist_week + args.n_hist_day) * args.n_hist_int + args.n_curr_int
+        if args.weight_1:
+            self.args.weight_2 = 1 - args.weight_1
+        else:
+            self.args.weight_2 = None
         self.GLOBAL_BATCH_SIZE = args.BATCH_SIZE * strategy.num_replicas_in_sync
         self.dataset_generator = DatasetGenerator(args.d_model,
                                                   args.dataset,
@@ -54,13 +58,13 @@ class ModelTrainer:
             self.f_max = parameters_nyctaxi.f_train_max
             self.es_patiences = [5, args.es_patience]
             self.es_threshold = args.es_threshold
-            self.reshuffle_threshold = [1.0]
+            self.reshuffle_threshold = [2.0]
             self.test_threshold = 10 / self.f_max
         else:
             self.f_max = parameters_nycbike.f_train_max
             self.es_patiences = [5, args.es_patience]
             self.es_threshold = args.es_threshold
-            self.reshuffle_threshold = [1.0]
+            self.reshuffle_threshold = [2.0]
             self.test_threshold = 10 / self.f_max
 
     def train(self):
