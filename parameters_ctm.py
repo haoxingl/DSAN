@@ -8,6 +8,6 @@ total_day = 90
 n_int = total_day * 24 * 60 * 60 / n_sec_int
 test_threshold = 100
 len_r = 20
-len_c = 20
+len_c = 21
 data_name = ['duration', 'request']
 data_type = 2
