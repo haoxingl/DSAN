@@ -1,0 +1,11 @@
+data_train = "./data/ctm/ctm_train.npz"
+data_val = "./data/ctm/ctm_val.npz"
+data_test = "./data/ctm/ctm_test.npz"
+data_max1 = [1139483.0, 4044.0]
+n_sec_int = 900
+n_int_day = 96
+total_day = 90
+n_int = total_day * 24 * 60 * 60 / n_sec_int
+loss_threshold = 100
+len_r = 20
+len_c = 20
