@@ -10,3 +10,4 @@ test_threshold = 100
 len_r = 20
 len_c = 20
 data_name = ['duration', 'request']
+data_type = 2

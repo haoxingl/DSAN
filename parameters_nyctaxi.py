@@ -11,3 +11,4 @@ test_threshold = 10
 len_r = 16
 len_c = 12
 data_name = ['inflow', 'outflow']
+data_type = 2
