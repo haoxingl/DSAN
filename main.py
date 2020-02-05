@@ -6,28 +6,29 @@ import shutil
 from utils.tools import write_result
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
-parser.add_argument('--dataset', default='taxi', help='taxi or bike')
-parser.add_argument('--gpu_ids', default='0, 1, 2, 3, 4, 5, 6, 7', help='indexes of gpus to use')
-parser.add_argument('--index', default=8, help='indexes of model to be trained')
-parser.add_argument('--test_name', default="weight_8_2")
+parser.add_argument('--dataset', default='taxi', help='taxi or bike or ctm')
+parser.add_argument('--gpu_ids', default='7', help='indexes of gpus to use')
+parser.add_argument('--index', default=9, help='indexes of model to be trained')
+parser.add_argument('--test_name', default="taxi")
 parser.add_argument('--hyp', default=[1])
-parser.add_argument('--run_time', default=3)
+parser.add_argument('--run_time', default=1)
 parser.add_argument('--BATCH_SIZE', default=64)
 parser.add_argument('--local_block_len', default=3)
 parser.add_argument('--local_block_len_g', default=5)
-parser.add_argument('--pre_shuffle', default=True)
 parser.add_argument('--remove_old_files', default=True)
 parser.add_argument('--load_saved_data', default=False)
 parser.add_argument('--no_save', default=False)
-parser.add_argument('--es_patience', default=5)
+parser.add_argument('--es_patience', default=10)
 parser.add_argument('--es_threshold', default=0.01)
-parser.add_argument('--test_model', default=None)
+parser.add_argument('--test_model', default=100)
 parser.add_argument('--mixed_precision', default=False)
 parser.add_argument('--always_test', default=None)
 parser.add_argument('--trace_graph', default=False)
+parser.add_argument('--gm_growth', default=True)
 
 """ Model hyperparameters """
 d_model = 64
+weight_1 = None
 parser.add_argument('--num_layers', default=3, help='num of self-attention layers')
 parser.add_argument('--d_model', default=d_model, help='model dimension')
 parser.add_argument('--dff', default=d_model * 4, help='dimension of feed-forward networks')
@@ -35,11 +36,10 @@ parser.add_argument('--num_heads', default=8, help='number of attention heads')
 parser.add_argument('--dropout_rate', default=0.1)
 parser.add_argument('--cnn_layers', default=3)
 parser.add_argument('--cnn_filters', default=d_model)
-parser.add_argument('--weight_1', default=8)
-parser.add_argument('--weight_2', default=2)
+parser.add_argument('--weight_1', default=weight_1)
 
 """ Training settings """
-parser.add_argument('--MAX_EPOCH', default=500)
+parser.add_argument('--MAX_EPOCH', default=256)
 parser.add_argument('--warmup_steps', default=4000)
 parser.add_argument('--verbose_train', default=1)
 
@@ -79,7 +79,7 @@ if args.mixed_precision:
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_ids
 
-assert args.dataset == 'taxi' or args.dataset == 'bike'
+assert args.dataset in ['taxi', 'bike', 'ctm']
 print("Dataset chosen: {}".format(args.dataset))
 
 from ModelTrainer import ModelTrainer

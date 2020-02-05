@@ -330,16 +330,16 @@ class STSAN_XL(Model):
 
         self.final_lyr = layers.Dense(2, activation='tanh')
 
-    def call(self, inp_g, inp_ft, inp_ex, dec_inp_f, dec_inp_ex, cors, cors_g, training,
+    def call(self, inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, training,
              padding_mask, padding_mask_g, look_ahead_mask):
 
         enc_output = self.encoder(inp_g, inp_ex, cors_g, training, padding_mask_g)
 
         dstl_output, attention_weights_dstl = \
-            self.distiller(inp_ft, inp_ex, enc_output, cors, training, padding_mask, padding_mask_g)
+            self.distiller(inp_l, inp_ex, enc_output, cors, training, padding_mask, padding_mask_g)
 
         dec_output, attention_weights_dec = \
-            self.decoder(dec_inp_f, dec_inp_ex, dstl_output, training, look_ahead_mask, None)
+            self.decoder(dec_inp, dec_inp_ex, dstl_output, training, look_ahead_mask, None)
 
         final_output = self.final_lyr(dec_output)
 
