@@ -7,12 +7,12 @@ from utils.tools import write_result
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike or ctm')
-parser.add_argument('--gpu_ids', default='7', help='indexes of gpus to use')
+parser.add_argument('--gpu_ids', default='0, 1, 2, 3', help='indexes of gpus to use')
 parser.add_argument('--index', default=9, help='indexes of model to be trained')
 parser.add_argument('--test_name', default="taxi")
 parser.add_argument('--hyp', default=[1])
 parser.add_argument('--run_time', default=1)
-parser.add_argument('--BATCH_SIZE', default=64)
+parser.add_argument('--BATCH_SIZE', default=128)
 parser.add_argument('--local_block_len', default=3)
 parser.add_argument('--local_block_len_g', default=5)
 parser.add_argument('--remove_old_files', default=True)
@@ -20,11 +20,11 @@ parser.add_argument('--load_saved_data', default=False)
 parser.add_argument('--no_save', default=False)
 parser.add_argument('--es_patience', default=10)
 parser.add_argument('--es_threshold', default=0.01)
-parser.add_argument('--test_model', default=100)
+parser.add_argument('--test_model', default=None)
 parser.add_argument('--mixed_precision', default=False)
 parser.add_argument('--always_test', default=None)
 parser.add_argument('--trace_graph', default=False)
-parser.add_argument('--gm_growth', default=True)
+parser.add_argument('--gm_growth', default=False)
 
 """ Model hyperparameters """
 d_model = 64
