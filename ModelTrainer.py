@@ -52,7 +52,7 @@ class ModelTrainer:
             args.n_hist_int = 1
             args.n_curr_int = 0
             args.n_int_before = 0
-            args.n_pred = 1
+            args.n_pred = 3
             args.local_block_len = 1
             args.local_block_len_g = 2
 
@@ -114,7 +114,7 @@ class ModelTrainer:
                         template_rmse += '{}:'.format(param.data_name[i])
                         for j in range(args.n_pred):
                             template_rmse += ' {}. {:.2f}({:.6f})'.format(
-                                i + 1,
+                                j + 1,
                                 rmse_test[i][j].result() * self.data_max[i],
                                 rmse_test[i][j].result()
                             )
@@ -124,7 +124,7 @@ class ModelTrainer:
                         template_mae += '{}:'.format(param.data_name[i])
                         for j in range(args.n_pred):
                             template_mae += ' {}. {:.2f}({:.6f})'.format(
-                                i + 1,
+                                j + 1,
                                 mae_test[i][j].result() * self.data_max[i],
                                 mae_test[i][j].result()
                             )
@@ -134,7 +134,7 @@ class ModelTrainer:
                         template_mape += '{}:'.format(param.data_name[i])
                         for j in range(args.n_pred):
                             template_mape += ' {}. {:.2f}'.format(
-                                i + 1,
+                                j + 1,
                                 mape_test[i][j].result()
                             )
                         template_mape += '\n'
@@ -146,7 +146,7 @@ class ModelTrainer:
                         template += '{}:'.format(param.data_name[i])
                         for j in range(args.n_pred):
                             template += " {}. {:.6f}".format \
-                                (i + 1, rmse_test[i][j].result())
+                                (j + 1, rmse_test[i][j].result())
                         template += "\n"
                     write_result(result_output_path,
                                  'Validation Result (Min-Max Norm, filtering out trivial grids):\n' + template)
