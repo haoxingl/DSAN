@@ -336,7 +336,7 @@ class ModelTrainer:
                     template = ''
                     for i in range(type_pred):
                         template += ' {} {:.6f}'.format(param.data_name[i], rmse_train[i].result())
-                        tf_summary_scalar(summary_writer, "rmse_train_{}".format(i + 1), rmse_train[i].result(),
+                        tf_summary_scalar(summary_writer, "rmse_train_{}".format(param.data_name[i]), rmse_train[i].result(),
                                           epoch + 1)
                     template = 'Epoch {}{}\n'.format \
                         (epoch + 1, template)
@@ -354,7 +354,7 @@ class ModelTrainer:
                     evaluate(val_dataset, epoch, final_test=False)
                     es_rmse = 0.0
                     for i in range(type_pred):
-                        tf_summary_scalar(summary_writer, "rmse_test_{}".format(i + 1), rmse_test[i][0].result(),
+                        tf_summary_scalar(summary_writer, "rmse_test_{}".format(param.data_name[i]), rmse_test[i][0].result(),
                                           epoch + 1)
                         es_rmse += float(rmse_test[i][0].result().numpy())
                     es_flag = es_helper.check(es_rmse / type_pred, epoch)
@@ -381,4 +381,4 @@ class ModelTrainer:
             write_result(result_output_path, "Start testing (filtering out trivial grids):")
             evaluate(test_dataset, epoch, final_test=True)
             for i in range(type_pred):
-                tf_summary_scalar(summary_writer, "final_rmse_{}".format(i + 1), rmse_test[i][0].result(), 1)
+                tf_summary_scalar(summary_writer, "final_rmse_{}".format(param.data_name[i]), rmse_test[i][0].result(), 1)
