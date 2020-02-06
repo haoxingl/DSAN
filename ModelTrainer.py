@@ -83,7 +83,7 @@ class ModelTrainer:
         else:
             self.data_max = param.data_max
 
-        self.test_threshold = [param.test_threshold / self.data_max[0], param.test_threshold / self.data_max[1]]
+        self.test_threshold = [param.test_threshold[0] / self.data_max[0], param.test_threshold[0] / self.data_max[1]]
 
     def train(self):
         strategy = self.strategy

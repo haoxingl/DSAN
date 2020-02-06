@@ -1,12 +1,10 @@
 data_train = "./data/ctm/ctm_train.npz"
 data_val = "./data/ctm/ctm_val.npz"
 data_test = "./data/ctm/ctm_test.npz"
-data_max = [1139483.0, 4044.0]
+data_max = [789086.0, 2368.0]
 n_sec_int = 900
 n_int_day = 96
-total_day = 90
-n_int = total_day * 24 * 60 * 60 / n_sec_int
-test_threshold = 100
+test_threshold = [100, 5]
 len_r = 20
 len_c = 21
 data_name = ['duration', 'request']
