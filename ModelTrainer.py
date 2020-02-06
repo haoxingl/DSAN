@@ -78,7 +78,7 @@ class ModelTrainer:
         self.es_patiences = [5, args.es_patience]
         self.es_threshold = args.es_threshold
         if args.dataset in ['taxi', 'bike']:
-            self.data_max = [self.param.data_max, self.param.t_max]
+            self.data_max = [self.param.data_max, self.param.data_max]
 
         else:
             self.data_max = param.data_max
@@ -133,9 +133,8 @@ class ModelTrainer:
                     for i in range(type_pred):
                         template_mape += '{}:'.format(param.data_name[i])
                         for j in range(args.n_pred):
-                            template_mape += ' {}. {:.2f}({:.6f})'.format(
+                            template_mape += ' {}. {:.2f}'.format(
                                 i + 1,
-                                mape_test[i][j].result() * self.data_max[i],
                                 mape_test[i][j].result()
                             )
                         template_mape += '\n'

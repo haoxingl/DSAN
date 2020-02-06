@@ -24,7 +24,7 @@ parser.add_argument('--test_model', default=None)
 parser.add_argument('--mixed_precision', default=False)
 parser.add_argument('--always_test', default=None)
 parser.add_argument('--trace_graph', default=False)
-parser.add_argument('--gm_growth', default=True)
+parser.add_argument('--gm_growth', default=False)
 
 """ Model hyperparameters """
 d_model = 64

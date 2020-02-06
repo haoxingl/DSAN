@@ -467,32 +467,32 @@ class DataLoader:
 
 
 if __name__ == "__main__":
-    # dl = DataLoader(64)
-    # inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data()
-    # inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(datatype='val')
-    # inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(datatype='test')
-    # inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
-    # inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
-    #                                                                             datatype='val')
-    # inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
-    #                                                                             datatype='test')
+    dl = DataLoader(64)
+    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data()
+    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(datatype='val')
+    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(datatype='test')
+    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
+    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
+                                                                                datatype='val')
+    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
+                                                                                datatype='test')
 
-    # dl = DataLoader(64, dataset='bike')
-    # inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data()
-    # inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(datatype='val')
-    # inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(datatype='test')
-    # inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
-    # inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
-    #                                                                             datatype='val')
-    # inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
-    #                                                                             datatype='test')
+    dl = DataLoader(64, dataset='bike')
+    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data()
+    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(datatype='val')
+    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(datatype='test')
+    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
+    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
+                                                                                datatype='val')
+    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
+                                                                                datatype='test')
 
     dl = DataLoader(64, dataset='ctm')
     inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data()
     inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(datatype='val')
     inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(datatype='test')
-    # inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
-    # inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
-    #                                                                             datatype='val')
-    # inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
-    #                                                                             datatype='test')
+    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
+    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
+                                                                                datatype='val')
+    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
+                                                                                datatype='test')
