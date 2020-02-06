@@ -91,7 +91,7 @@ if not os.path.exists('./results/stsan_xl'):
 if __name__ == "__main__":
     if args.test_name:
         for this_arg in args.hyp:
-            for cnt in range(args.run_time):
+            for cnt in range(args.run_time if not args.test_model else 1):
                 model_index = args.dataset + '_{}_{}_{}_{}'.format(args.index, args.test_name, this_arg, cnt + 1)
                 print('Model index: {}'.format(model_index))
 
@@ -109,9 +109,9 @@ if __name__ == "__main__":
                 args.load_saved_data = True
                 K.clear_session()
 
-            args.load_saved_data = False
+            # args.load_saved_data = False
     else:
-        for cnt in range(args.run_time):
+        for cnt in range(args.run_time if not args.test_model else 1):
             model_index = args.dataset + '_{}_{}'.format(args.index, cnt + 1)
             print('Model index: {}'.format(model_index))
 

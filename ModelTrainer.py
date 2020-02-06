@@ -39,7 +39,6 @@ class ModelTrainer:
         self.param = param
 
         self.model_index = model_index
-        self.args = args
         if args.test_model:
             args.num_layers = 1
             args.d_model = 8
@@ -55,7 +54,7 @@ class ModelTrainer:
             args.n_pred = 3
             args.local_block_len = 1
             args.local_block_len_g = 2
-
+        self.args = args
         self.args.seq_len = (args.n_hist_week + args.n_hist_day) * args.n_hist_int + args.n_curr_int
         if args.weight_1:
             self.args.weight_2 = 1 - args.weight_1
@@ -96,10 +95,7 @@ class ModelTrainer:
 
         train_dataset = self.dataset_generator.build_dataset('train', args.load_saved_data,
                                                              strategy, args.st_revert, args.no_save)
-        val_dataset = self.dataset_generator.build_dataset('val', args.load_saved_data,
-                                                           strategy, args.st_revert, args.no_save)
-        test_dataset = self.dataset_generator.build_dataset('test', args.load_saved_data, strategy,
-                                                            args.st_revert, args.no_save)
+        test_dataset = None
 
         with strategy.scope():
 
@@ -336,7 +332,8 @@ class ModelTrainer:
                     template = ''
                     for i in range(type_pred):
                         template += ' {} {:.6f}'.format(param.data_name[i], rmse_train[i].result())
-                        tf_summary_scalar(summary_writer, "rmse_train_{}".format(param.data_name[i]), rmse_train[i].result(),
+                        tf_summary_scalar(summary_writer, "rmse_train_{}".format(param.data_name[i]),
+                                          rmse_train[i].result(),
                                           epoch + 1)
                     template = 'Epoch {}{}\n'.format \
                         (epoch + 1, template)
@@ -345,21 +342,30 @@ class ModelTrainer:
                 eval_rmse = 0.0
                 for i in range(type_pred):
                     eval_rmse += float(rmse_train[i].result().numpy())
-                eval_rmse /= type_pred
 
-                if not check_flag and es_helper.refresh_status(eval_rmse):
+                if test_model or (not check_flag and es_helper.refresh_status(eval_rmse)):
                     check_flag = True
+                    val_dataset = self.dataset_generator.build_dataset('val', args.load_saved_data,
+                                                                       strategy, args.st_revert, args.no_save)
 
-                if test_model or check_flag:
+                if check_flag:
                     evaluate(val_dataset, epoch, final_test=False)
                     es_rmse = 0.0
                     for i in range(type_pred):
-                        tf_summary_scalar(summary_writer, "rmse_test_{}".format(param.data_name[i]), rmse_test[i][0].result(),
+                        for j in range(args.n_pred):
+                            if args.weight_1:
+                                es_rmse += float(rmse_test[i][j].result().numpy()) * (
+                                    args.weight_1 if j < 1 else args.weight_2)
+                            es_rmse += float(rmse_test[i][j].result().numpy())
+                        tf_summary_scalar(summary_writer, "rmse_test_{}".format(param.data_name[i]),
+                                          rmse_test[i][0].result(),
                                           epoch + 1)
-                        es_rmse += float(rmse_test[i][0].result().numpy())
-                    es_flag = es_helper.check(es_rmse / type_pred, epoch)
+                    es_flag = es_helper.check(es_rmse, epoch)
                     tf_summary_scalar(summary_writer, "best_epoch", es_helper.get_bestepoch(), epoch + 1)
                     if args.always_test and (epoch + 1) % args.always_test == 0:
+                        if not test_dataset:
+                            test_dataset = self.dataset_generator.build_dataset('test', args.load_saved_data, strategy,
+                                                                                args.st_revert, args.no_save)
                         write_result(result_output_path, "Always Test:")
                         evaluate(test_dataset, epoch)
 
@@ -379,6 +385,9 @@ class ModelTrainer:
                     es_flag = True
 
             write_result(result_output_path, "Start testing (filtering out trivial grids):")
+            test_dataset = self.dataset_generator.build_dataset('test', args.load_saved_data, strategy,
+                                                                args.st_revert, args.no_save)
             evaluate(test_dataset, epoch, final_test=True)
             for i in range(type_pred):
-                tf_summary_scalar(summary_writer, "final_rmse_{}".format(param.data_name[i]), rmse_test[i][0].result(), 1)
+                tf_summary_scalar(summary_writer, "final_rmse_{}".format(param.data_name[i]), rmse_test[i][0].result(),
+                                  1)
