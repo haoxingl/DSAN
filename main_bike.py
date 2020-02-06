@@ -6,10 +6,10 @@ import shutil
 from utils.tools import write_result
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
-parser.add_argument('--dataset', default='taxi', help='taxi or bike or ctm')
-parser.add_argument('--gpu_ids', default='0, 1, 2, 3', help='indexes of gpus to use')
+parser.add_argument('--dataset', default='bike', help='taxi or bike or ctm')
+parser.add_argument('--gpu_ids', default='4, 5', help='indexes of gpus to use')
 parser.add_argument('--index', default=9, help='indexes of model to be trained')
-parser.add_argument('--test_name', default="taxi")
+parser.add_argument('--test_name', default="bike")
 parser.add_argument('--hyp', default=[1])
 parser.add_argument('--run_time', default=3)
 parser.add_argument('--BATCH_SIZE', default=128)
