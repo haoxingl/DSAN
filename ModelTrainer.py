@@ -14,18 +14,17 @@ import parameters_nyctaxi
 import parameters_nycbike
 import parameters_ctm
 
+gpus = tf.config.experimental.list_physical_devices('GPU')
+
+if False:
+    try:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+    except RuntimeError as e:
+        print(e)
 
 class ModelTrainer:
     def __init__(self, model_index, args):
-
-        gpus = tf.config.experimental.list_physical_devices('GPU')
-
-        if gpus and args.gm_growth:
-            try:
-                for gpu in gpus:
-                    tf.config.experimental.set_memory_growth(gpu, True)
-            except RuntimeError as e:
-                print(e)
 
         """ use mirrored strategy for distributed training """
         self.strategy = tf.distribute.MirroredStrategy()
@@ -72,6 +71,7 @@ class ModelTrainer:
                                                   args.n_pred,
                                                   args.local_block_len,
                                                   args.local_block_len_g,
+                                                  args.pre_shuffle,
                                                   args.test_model)
 
         self.es_patiences = [5, args.es_patience]
@@ -350,17 +350,18 @@ class ModelTrainer:
 
                 if check_flag:
                     evaluate(val_dataset, epoch, final_test=False)
-                    es_rmse = 0.0
+                    es_rmse = [0.0, 0.0]
                     for i in range(type_pred):
                         for j in range(args.n_pred):
                             if args.weight_1:
-                                es_rmse += float(rmse_test[i][j].result().numpy()) * (
-                                    args.weight_1 if j < 1 else args.weight_2)
-                            es_rmse += float(rmse_test[i][j].result().numpy())
+                                es_rmse[i] += float(rmse_test[i][j].result().numpy()) * (
+                                    args.weight_1 if j < 1 else args.weight_2/(args.n_pred - 1))
+                            else:
+                                es_rmse[i] += float(rmse_test[i][j].result().numpy())/args.n_pred
                         tf_summary_scalar(summary_writer, "rmse_test_{}".format(param.data_name[i]),
-                                          rmse_test[i][0].result(),
+                                          es_rmse[i],
                                           epoch + 1)
-                    es_flag = es_helper.check(es_rmse, epoch)
+                    es_flag = es_helper.check(es_rmse[0] + es_rmse[1], epoch)
                     tf_summary_scalar(summary_writer, "best_epoch", es_helper.get_bestepoch(), epoch + 1)
                     if args.always_test and (epoch + 1) % args.always_test == 0:
                         if not test_dataset:

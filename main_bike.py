@@ -7,24 +7,25 @@ from utils.tools import write_result
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='bike', help='taxi or bike or ctm')
-parser.add_argument('--gpu_ids', default='6, 7', help='indexes of gpus to use')
+parser.add_argument('--gpu_ids', default='4, 5', help='indexes of gpus to use')
 parser.add_argument('--index', default=9, help='indexes of model to be trained')
-parser.add_argument('--test_name', default="bike")
-parser.add_argument('--hyp', default=[1])
+parser.add_argument('--test_name', default="weight_1")
+parser.add_argument('--hyp', default=[0.9, 0.7, 0.5])
 parser.add_argument('--run_time', default=3)
-parser.add_argument('--BATCH_SIZE', default=64)
+parser.add_argument('--BATCH_SIZE', default=128)
 parser.add_argument('--local_block_len', default=3)
 parser.add_argument('--local_block_len_g', default=5)
+parser.add_argument('--pre_shuffle', default=True)
 parser.add_argument('--remove_old_files', default=True)
 parser.add_argument('--load_saved_data', default=False)
 parser.add_argument('--no_save', default=False)
 parser.add_argument('--es_patience', default=10)
 parser.add_argument('--es_threshold', default=0.01)
-parser.add_argument('--test_model', default=None)
+parser.add_argument('--test_model', default=100)
 parser.add_argument('--mixed_precision', default=False)
 parser.add_argument('--always_test', default=None)
 parser.add_argument('--trace_graph', default=False)
-parser.add_argument('--gm_growth', default=True)
+parser.add_argument('--gm_growth', default=False)
 
 """ Model hyperparameters """
 d_model = 64
@@ -92,7 +93,7 @@ if __name__ == "__main__":
     if args.test_name:
         for this_arg in args.hyp:
             for cnt in range(args.run_time if not args.test_model else 1):
-                model_index = args.dataset + '_{}_{}_{}_{}'.format(args.index, args.test_name, this_arg, cnt + 1)
+                model_index = args.dataset + '_{}_{}_{}_{}'.format(args.index if not args.test_model else 'test', args.test_name, this_arg, cnt + 1)
                 print('Model index: {}'.format(model_index))
 
                 exec("%s = %d" % ('args.{}'.format(args.test_name), this_arg))
@@ -112,7 +113,7 @@ if __name__ == "__main__":
             # args.load_saved_data = False
     else:
         for cnt in range(args.run_time if not args.test_model else 1):
-            model_index = args.dataset + '_{}_{}'.format(args.index, cnt + 1)
+            model_index = args.dataset + '_{}_{}'.format(args.index if not args.test_model else 'test', cnt + 1)
             print('Model index: {}'.format(model_index))
 
             if args.remove_old_files:

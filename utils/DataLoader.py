@@ -7,7 +7,7 @@ import parameters_ctm as param_ctm
 
 
 class DataLoader:
-    def __init__(self, d_model, dataset='taxi', local_block_len=3, local_block_len_g=5, test_model=False):
+    def __init__(self, d_model, dataset='taxi', local_block_len=3, local_block_len_g=5, pre_shuffle=True, test_model=False):
         assert dataset in ['taxi', 'bike', 'ctm']
         self.dataset = dataset
         pmt = None
@@ -19,6 +19,7 @@ class DataLoader:
         self.local_block_len_g = local_block_len_g
         self.cor_gen = CordinateGenerator(self.pmt.len_r, self.pmt.len_c, d_model, local_block_len=local_block_len)
         self.cor_gen_g = CordinateGenerator(self.pmt.len_r, self.pmt.len_c, d_model, local_block_len=local_block_len_g)
+        self.pre_shuffle = pre_shuffle
         self.test_model = test_model
 
     def load_data(self, datatype='train'):
@@ -63,6 +64,23 @@ class DataLoader:
             cors = np.load("data/cors_{}_{}.npz".format(self.dataset, datatype))['data']
             cors_g = np.load("data/cors_g_{}_{}.npz".format(self.dataset, datatype))['data']
             y = np.load("data/y_{}_{}.npz".format(self.dataset, datatype))['data']
+            
+            if self.pre_shuffle and datatype == 'train':
+                inp_shape = inp_g.shape[0]
+                train_size = int(inp_shape * 0.8)
+                data_ind = np.random.permutation(inp_shape)
+
+                inp_g = np.split(inp_g[data_ind, ...], (train_size,))
+                inp_l = np.split(inp_l[data_ind, ...], (train_size,))
+                inp_ex = np.split(inp_ex[data_ind, ...], (train_size,))
+
+                dec_inp = np.split(dec_inp[data_ind, ...], (train_size,))
+                dec_inp_ex = np.split(dec_inp_ex[data_ind, ...], (train_size,))
+
+                cors = np.split(cors[data_ind, ...], (train_size,))
+                cors_g = np.split(cors_g[data_ind, ...], (train_size,))
+
+                y = np.split(y[data_ind, ...], (train_size,))
 
             return inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y
         else:
@@ -71,7 +89,10 @@ class DataLoader:
 
             print("Loading {} data...".format(datatype))
             """ loading data """
-            self.load_data(datatype)
+            if self.pre_shuffle and datatype == 'val':
+                self.load_data('train')
+            else:
+                self.load_data(datatype)
 
             data_mtx = self.data_mtx
             ex_mtx = self.ex_mtx
@@ -462,6 +483,23 @@ class DataLoader:
                 np.savez_compressed("data/cors_{}_{}.npz".format(self.dataset, datatype), data=cors)
                 np.savez_compressed("data/cors_g_{}_{}.npz".format(self.dataset, datatype), data=cors_g)
                 np.savez_compressed("data/y_{}_{}.npz".format(self.dataset, datatype), data=y)
+                
+            if self.pre_shuffle and datatype == 'train':
+                inp_shape = inp_g.shape[0]
+                train_size = int(inp_shape * 0.8)
+                data_ind = np.random.permutation(inp_shape)
+
+                inp_g = np.split(inp_g[data_ind, ...], (train_size,))
+                inp_l = np.split(inp_l[data_ind, ...], (train_size,))
+                inp_ex = np.split(inp_ex[data_ind, ...], (train_size,))
+
+                dec_inp = np.split(dec_inp[data_ind, ...], (train_size,))
+                dec_inp_ex = np.split(dec_inp_ex[data_ind, ...], (train_size,))
+
+                cors = np.split(cors[data_ind, ...], (train_size,))
+                cors_g = np.split(cors_g[data_ind, ...], (train_size,))
+
+                y = np.split(y[data_ind, ...], (train_size,))
 
             return inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y
 
