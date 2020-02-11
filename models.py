@@ -192,12 +192,15 @@ class DecoderLayer(layers.Layer):
         attn2 = self.dropout2(attn2, training=training)
         out2 = self.layernorm2(attn2 + out1)
 
+        if self.revert_q:
+            out2 = tf.transpose(out2, perm=[0, 2, 1, 3])
+
         ffn_output = self.ffn(out2)
         ffn_output = self.dropout3(ffn_output, training=training)
         out3 = self.layernorm3(ffn_output + out2)
 
-        if self.revert_q:
-            out3 = tf.transpose(out3, perm=[0, 2, 1, 3])
+        # if self.revert_q:
+        #     out3 = tf.transpose(out3, perm=[0, 2, 1, 3])
 
         return out3, attn_weights_block1, attn_weights_block2
 

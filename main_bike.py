@@ -7,29 +7,28 @@ from utils.tools import write_result
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='bike', help='taxi or bike or ctm')
-parser.add_argument('--gpu_ids', default='4, 5', help='indexes of gpus to use')
+parser.add_argument('--gpu_ids', default='6, 7', help='indexes of gpus to use')
 parser.add_argument('--index', default=9, help='indexes of model to be trained')
-parser.add_argument('--test_name', default="weight_1")
-parser.add_argument('--hyp', default=[0.9, 0.7, 0.5])
+parser.add_argument('--test_name', default="weight_1_05_bl33")
+parser.add_argument('--hyp', default=[1])
 parser.add_argument('--run_time', default=3)
-parser.add_argument('--BATCH_SIZE', default=128)
+parser.add_argument('--BATCH_SIZE', default=64)
 parser.add_argument('--local_block_len', default=3)
-parser.add_argument('--local_block_len_g', default=5)
+parser.add_argument('--local_block_len_g', default=3)
 parser.add_argument('--pre_shuffle', default=True)
 parser.add_argument('--remove_old_files', default=True)
 parser.add_argument('--load_saved_data', default=False)
 parser.add_argument('--no_save', default=False)
 parser.add_argument('--es_patience', default=10)
 parser.add_argument('--es_threshold', default=0.01)
-parser.add_argument('--test_model', default=100)
+parser.add_argument('--test_model', default=None)
 parser.add_argument('--mixed_precision', default=False)
 parser.add_argument('--always_test', default=None)
 parser.add_argument('--trace_graph', default=False)
-parser.add_argument('--gm_growth', default=False)
 
 """ Model hyperparameters """
 d_model = 64
-weight_1 = None
+weight_1 = 0.5
 parser.add_argument('--num_layers', default=3, help='num of self-attention layers')
 parser.add_argument('--d_model', default=d_model, help='model dimension')
 parser.add_argument('--dff', default=d_model * 4, help='dimension of feed-forward networks')
@@ -85,6 +84,17 @@ print("Dataset chosen: {}".format(args.dataset))
 
 from ModelTrainer import ModelTrainer
 import tensorflow.keras.backend as K
+
+import tensorflow as tf
+
+gpus = tf.config.experimental.list_physical_devices('GPU')
+
+if True:
+    try:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+    except RuntimeError as e:
+        print(e)
 
 if not os.path.exists('./results/stsan_xl'):
     os.makedirs('./results/stsan_xl')

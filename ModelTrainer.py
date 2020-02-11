@@ -14,15 +14,6 @@ import parameters_nyctaxi
 import parameters_nycbike
 import parameters_ctm
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
-
-if False:
-    try:
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-    except RuntimeError as e:
-        print(e)
-
 class ModelTrainer:
     def __init__(self, model_index, args):
 
