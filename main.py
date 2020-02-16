@@ -14,7 +14,7 @@ parser.add_argument('--index', default=11, help='indexes of model to be trained'
 parser.add_argument('--test_name', default="new_arch")
 parser.add_argument('--hyp', default=[1])
 parser.add_argument('--run_time', default=3)
-parser.add_argument('--remove_old_files', default=False)
+parser.add_argument('--remove_old_files', default=True)
 parser.add_argument('--load_saved_data', default=False)
 parser.add_argument('--no_save', default=False)
 parser.add_argument('--test_model', default=None)
@@ -23,13 +23,13 @@ parser.add_argument('--always_test', default=None)
 
 """ Model hyperparameters """
 d_model = 64
-parser.add_argument('--num_layers', default=3, help='num of self-attention layers')
+parser.add_argument('--n_layer', default=3, help='num of self-attention layers')
 parser.add_argument('--d_model', default=d_model, help='model dimension')
 parser.add_argument('--dff', default=d_model * 4, help='dimension of feed-forward networks')
-parser.add_argument('--num_heads', default=8, help='number of attention heads')
-parser.add_argument('--dropout_rate', default=0.1)
-parser.add_argument('--cnn_layers', default=1)
-parser.add_argument('--cnn_filters', default=d_model)
+parser.add_argument('--n_head', default=8, help='number of attention heads')
+parser.add_argument('--r_d', default=0.1)
+parser.add_argument('--conv_layer', default=1)
+parser.add_argument('--conv_filter', default=d_model)
 
 """ Training settings """
 weights_t = np.array([1 for _ in range(12)], dtype=np.float32)[:, np.newaxis]

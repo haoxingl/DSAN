@@ -150,7 +150,7 @@ class TrainModel:
                         args.conv_layer,
                         args.conv_filter,
                         args.l_hist,
-                        args.dropout_rate)
+                        args.r_d)
 
             def train_step(dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y):
 
