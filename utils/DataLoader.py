@@ -1,130 +1,98 @@
 import numpy as np
 from utils.CordinateGenerator import CordinateGenerator
 
-import parameters_nyctaxi as param_taxi
-import parameters_nycbike as param_bike
-import parameters_ctm as param_ctm
+from data_parameters import data_parameters
 
 
 class DataLoader:
-    def __init__(self, d_model, dataset='taxi', local_block_len=3, local_block_len_g=5, pre_shuffle=True, test_model=False):
+    def __init__(self, d_model, dataset='taxi', l_half=3, l_half_g=5, pre_shuffle=True, same_padding=False,
+                 test_model=None):
         assert dataset in ['taxi', 'bike', 'ctm']
         self.dataset = dataset
-        pmt = None
-        pmt = param_taxi if dataset == 'taxi' else pmt
-        pmt = param_bike if dataset == 'bike' else pmt
-        pmt = param_ctm if dataset == 'ctm' else pmt
-        self.pmt = pmt
-        self.local_block_len = local_block_len
-        self.local_block_len_g = local_block_len_g
-        self.cor_gen = CordinateGenerator(self.pmt.len_r, self.pmt.len_c, d_model, local_block_len=local_block_len)
-        self.cor_gen_g = CordinateGenerator(self.pmt.len_r, self.pmt.len_c, d_model, local_block_len=local_block_len_g)
+        self.pmt = data_parameters[dataset]
+        self.l_half = l_half
+        self.l_half_g = l_half_g
+        self.cor_gen = CordinateGenerator(self.pmt['len_r'], self.pmt['len_c'], d_model, l_half=l_half)
+        self.cor_gen_g = CordinateGenerator(self.pmt['len_r'], self.pmt['len_c'], d_model, l_half=l_half_g)
         self.pre_shuffle = pre_shuffle
+        self.same_padding = same_padding
         self.test_model = test_model
 
     def load_data(self, datatype='train'):
+        pred_type = self.pmt['pred_type']
         if datatype == 'train':
-            data = np.load(self.pmt.data_train)
+            data = np.load(self.pmt['data_train'])
         elif datatype == 'val':
-            data = np.load(self.pmt.data_val)
+            data = np.load(self.pmt['data_val'])
         else:
-            data = np.load(self.pmt.data_test)
+            data = np.load(self.pmt['data_test'])
 
         if self.dataset in ['taxi', 'bike']:
-            self.data_mtx = np.array(data['flow'], dtype=np.float32) / self.pmt.data_max
-            self.t_mtx = np.array(data['trans'], dtype=np.float32) / self.pmt.t_max
+            self.data_mtx = np.array(data['flow'], dtype=np.float32) / np.array(self.pmt['data_max'][:pred_type],
+                                                                                dtype=np.float32)
+            self.t_mtx = np.array(data['trans'], dtype=np.float32) / np.array(self.pmt['data_max'][pred_type:],
+                                                                              dtype=np.float32)
             self.ex_mtx = data['ex_knlg']
         else:
             self.data_mtx = np.array(data['data'], dtype=np.float32)
-            self.data_mtx[..., 0] = self.data_mtx[..., 0] / self.pmt.data_max[0]
-            self.data_mtx[..., 1] = self.data_mtx[..., 1] / self.pmt.data_max[1]
+            self.data_mtx = self.data_mtx / np.array(self.pmt['data_max'], dtype=np.float32)
             self.ex_mtx = data['ex_knlg']
 
-    def generate_data(self, datatype='train',
-                      n_hist_week=1,  # number previous weeks we generate the sample from.
-                      n_hist_day=3,  # number of the previous days we generate the sample from
-                      n_hist_int=1,  # number of intervals we sample in the previous weeks, days
-                      n_curr_int=1,  # number of intervals we sample in the current day
-                      n_int_before=0,  # number of intervals before the predicted interval
-                      n_pred=12,
-                      st_revert=False,
-                      no_save=False,
-                      load_saved_data=False):  # loading the previous saved data
+    def generate_data(self, datatype='train', n_w=1, n_d=3, n_wd_times=1, n_p=1, n_before=0, n_pred=12,
+                      load_saved_data=False, st_revert=False, no_save=False):
 
         assert datatype in ['train', 'val', 'test']
 
         """ loading saved data """
         if load_saved_data and not self.test_model:
             print('Loading {} data from .npzs...'.format(datatype))
-            inp_g = np.load("data/inp_g_{}_{}.npz".format(self.dataset, datatype))['data']
-            inp_l = np.load("data/inp_l_{}_{}.npz".format(self.dataset, datatype))['data']
-            inp_ex = np.load("data/inp_ex_{}_{}.npz".format(self.dataset, datatype))['data']
-            dec_inp = np.load("data/dec_inp_{}_{}.npz".format(self.dataset, datatype))['data']
-            dec_inp_ex = np.load("data/dec_inp_ex_{}_{}.npz".format(self.dataset, datatype))['data']
+            dae_inp_g = np.load("data/dae_inp_g_{}_{}.npz".format(self.dataset, datatype))['data']
+            dae_inp = np.load("data/dae_inp_{}_{}.npz".format(self.dataset, datatype))['data']
+            dae_inp_ex = np.load("data/dae_inp_ex_{}_{}.npz".format(self.dataset, datatype))['data']
+            sad_inp = np.load("data/sad_inp_{}_{}.npz".format(self.dataset, datatype))['data']
+            sad_inp_ex = np.load("data/sad_inp_ex_{}_{}.npz".format(self.dataset, datatype))['data']
             cors = np.load("data/cors_{}_{}.npz".format(self.dataset, datatype))['data']
             cors_g = np.load("data/cors_g_{}_{}.npz".format(self.dataset, datatype))['data']
             y = np.load("data/y_{}_{}.npz".format(self.dataset, datatype))['data']
-            
-            if self.pre_shuffle and datatype == 'train':
-                inp_shape = inp_g.shape[0]
-                train_size = int(inp_shape * 0.8)
-                data_ind = np.random.permutation(inp_shape)
-
-                inp_g = np.split(inp_g[data_ind, ...], (train_size,))
-                inp_l = np.split(inp_l[data_ind, ...], (train_size,))
-                inp_ex = np.split(inp_ex[data_ind, ...], (train_size,))
-
-                dec_inp = np.split(dec_inp[data_ind, ...], (train_size,))
-                dec_inp_ex = np.split(dec_inp_ex[data_ind, ...], (train_size,))
-
-                cors = np.split(cors[data_ind, ...], (train_size,))
-                cors_g = np.split(cors_g[data_ind, ...], (train_size,))
-
-                y = np.split(y[data_ind, ...], (train_size,))
-
-            return inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y
         else:
-            local_block_len = self.local_block_len
-            local_block_len_g = self.local_block_len_g
+            l_half = self.l_half
+            l_half_g = self.l_half_g
 
             print("Loading {} data...".format(datatype))
             """ loading data """
-            if self.pre_shuffle and datatype == 'val':
-                self.load_data('train')
-            else:
-                self.load_data(datatype)
+            self.load_data(datatype)
 
             data_mtx = self.data_mtx
             ex_mtx = self.ex_mtx
             data_shape = data_mtx.shape
-            no_ctm = self.dataset in ['taxi', 'bike']
-            if no_ctm:
+            crowd_flow = self.dataset in ['taxi', 'bike']
+            if crowd_flow:
                 t_mtx = self.t_mtx
 
-            if local_block_len:
-                block_full_len = 2 * local_block_len + 1
+            if l_half:
+                l_full = 2 * l_half + 1
 
-            if local_block_len_g:
-                block_full_len_g = 2 * local_block_len_g + 1
+            if l_half_g:
+                l_full_g = 2 * l_half_g + 1
 
             """ initialize the array to hold the final inputs """
 
-            inp_g = []
-            inp_l = []
-            inp_ex = []
+            dae_inp_g = []
+            dae_inp = []
+            dae_inp_ex = []
+
+            sad_inp = []
+            sad_inp_ex = []
 
             cors_g = []
             cors = []
 
-            dec_inp = []
-            dec_inp_ex = []
-
             y = []
 
-            assert n_hist_week >= 0 and n_hist_day >= 0 and n_hist_day < 7
+            assert n_w >= 0 and n_d >= 0 and n_d < 7
             """ set the start time interval to sample the data"""
-            s1 = n_hist_day * self.pmt.n_int_day + n_int_before
-            s2 = n_hist_week * 7 * self.pmt.n_int_day + n_int_before
+            s1 = n_d * self.pmt['n_int'] + n_before
+            s2 = n_w * 7 * self.pmt['n_int'] + n_before
             time_start = max(s1, s2)
             time_end = data_shape[0] - n_pred
 
@@ -137,317 +105,163 @@ class DataLoader:
 
                         """ initialize the array to hold the samples of each node at each time interval """
 
-                        inp_g_sample = []
-                        inp_l_sample = []
-                        inp_ex_sample = []
+                        dae_inp_g_sample = []
+                        dae_inp_sample = []
+                        dae_inp_ex_sample = []
 
-                        if local_block_len:
+                        if l_half:
                             """ initialize the boundaries of the area of interest """
-                            r_start = r - local_block_len  # the start location of each AoI
-                            c_start = c - local_block_len
+                            r_start = r - l_half  # the start location of each AoI
+                            c_start = c - l_half
 
                             """ adjust the start location if it is on the boundaries of the grid map """
                             if r_start < 0:
-                                r_start_local = 0 - r_start
+                                r_start_l = 0 - r_start
                                 r_start = 0
                             else:
-                                r_start_local = 0
+                                r_start_l = 0
                             if c_start < 0:
-                                c_start_local = 0 - c_start
+                                c_start_l = 0 - c_start
                                 c_start = 0
                             else:
-                                c_start_local = 0
+                                c_start_l = 0
 
-                            r_end = r + local_block_len + 1  # the end location of each AoI
-                            c_end = c + local_block_len + 1
+                            r_end = r + l_half + 1  # the end location of each AoI
+                            c_end = c + l_half + 1
                             if r_end >= data_shape[1]:
-                                r_end_local = block_full_len - (r_end - data_shape[1])
+                                r_end_l = l_full - (r_end - data_shape[1])
                                 r_end = data_shape[1]
                             else:
-                                r_end_local = block_full_len
+                                r_end_l = l_full
                             if c_end >= data_shape[2]:
-                                c_end_local = block_full_len - (c_end - data_shape[2])
+                                c_end_l = l_full - (c_end - data_shape[2])
                                 c_end = data_shape[2]
                             else:
-                                c_end_local = block_full_len
+                                c_end_l = l_full
 
-                        if local_block_len_g:
+                        if l_half_g:
                             """ initialize the boundaries of the area of interest """
-                            r_start_g = r - local_block_len_g  # the start location of each AoI
-                            c_start_g = c - local_block_len_g
+                            r_start_g = r - l_half_g  # the start location of each AoI
+                            c_start_g = c - l_half_g
 
                             """ adjust the start location if it is on the boundaries of the grid map """
                             if r_start_g < 0:
-                                r_start_local_g = 0 - r_start_g
+                                r_start_g_l = 0 - r_start_g
                                 r_start_g = 0
                             else:
-                                r_start_local_g = 0
+                                r_start_g_l = 0
                             if c_start_g < 0:
-                                c_start_local_g = 0 - c_start_g
+                                c_start_g_l = 0 - c_start_g
                                 c_start_g = 0
                             else:
-                                c_start_local_g = 0
+                                c_start_g_l = 0
 
-                            r_end_g = r + local_block_len_g + 1  # the end location of each AoI
-                            c_end_g = c + local_block_len_g + 1
+                            r_end_g = r + l_half_g + 1  # the end location of each AoI
+                            c_end_g = c + l_half_g + 1
                             if r_end_g >= data_shape[1]:
-                                r_end_local_g = block_full_len_g - (r_end_g - data_shape[1])
+                                r_end_g_l = l_full_g - (r_end_g - data_shape[1])
                                 r_end_g = data_shape[1]
                             else:
-                                r_end_local_g = block_full_len_g
+                                r_end_g_l = l_full_g
                             if c_end_g >= data_shape[2]:
-                                c_end_local_g = block_full_len_g - (c_end_g - data_shape[2])
+                                c_end_g_l = l_full_g - (c_end_g - data_shape[2])
                                 c_end_g = data_shape[2]
                             else:
-                                c_end_local_g = block_full_len_g
+                                c_end_g_l = l_full_g
 
                         """ start the samplings of previous weeks """
-                        for week_cnt in range(n_hist_week):
-                            s_time_w = int(t - (n_hist_week - week_cnt) * 7 * self.pmt.n_int_day - n_int_before)
+                        t_hist = []
 
-                            for int_cnt in range(n_hist_int):
-                                t_now = s_time_w + int_cnt
+                        for week_cnt in range(n_w):
+                            s_time_w = int(t - (n_w - week_cnt) * 7 * self.pmt['n_int'] - n_before)
 
-                                if not local_block_len_g:
-                                    one_inp_g = data_mtx[t_now, ...]
-
-                                    if no_ctm:
-                                        one_inp_g_t = np.zeros((data_shape[1], data_shape[2], 2), dtype=np.float32)
-
-                                        one_inp_g_t[..., 0] += t_mtx[0, t_now, ..., r, c]
-                                        one_inp_g_t[..., 0] += t_mtx[1, t_now, ..., r, c]
-                                        one_inp_g_t[..., 1] += t_mtx[0, t_now, r, c, ...]
-                                        one_inp_g_t[..., 1] += t_mtx[1, t_now, r, c, ...]
-
-                                else:
-                                    one_inp_g = np.zeros((block_full_len_g, block_full_len_g, 2), dtype=np.float32)
-                                    one_inp_g[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g,
-                                    :] = data_mtx[
-                                         t_now,
-                                         r_start_g:r_end_g,
-                                         c_start_g:c_end_g,
-                                         :]
-
-                                    if no_ctm:
-                                        one_inp_g_t = np.zeros((block_full_len_g, block_full_len_g, 2),
-                                                               dtype=np.float32)
-                                        one_inp_g_t[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g,
-                                        0] += \
-                                            t_mtx[0, t_now, r_start_g:r_end_g, c_start_g:c_end_g, r, c]
-                                        one_inp_g_t[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g,
-                                        0] += \
-                                            t_mtx[1, t_now, r_start_g:r_end_g, c_start_g:c_end_g, r, c]
-                                        one_inp_g_t[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g,
-                                        1] += \
-                                            t_mtx[0, t_now, r, c, r_start_g:r_end_g, c_start_g:c_end_g]
-                                        one_inp_g_t[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g,
-                                        1] += \
-                                            t_mtx[1, t_now, r, c, r_start_g:r_end_g, c_start_g:c_end_g]
-
-                                inp_g_sample.append(
-                                    np.concatenate([one_inp_g, one_inp_g_t], axis=-1) if no_ctm else one_inp_g)
-
-                                if not local_block_len:
-                                    one_inp_l = data_mtx[t_now, ...]
-
-                                    if no_ctm:
-                                        one_inp_l_t = np.zeros((data_shape[1], data_shape[2], 2), dtype=np.float32)
-
-                                        one_inp_l_t[..., 0] += t_mtx[0, t_now, ..., r, c]
-                                        one_inp_l_t[..., 0] += t_mtx[1, t_now, ..., r, c]
-                                        one_inp_l_t[..., 1] += t_mtx[0, t_now, r, c, ...]
-                                        one_inp_l_t[..., 1] += t_mtx[1, t_now, r, c, ...]
-
-                                else:
-                                    one_inp_l = np.zeros((block_full_len, block_full_len, 2), dtype=np.float32)
-                                    one_inp_l[...] = data_mtx[t_now, r, c, :]
-                                    one_inp_l[r_start_local:r_end_local, c_start_local:c_end_local, :] = data_mtx[
-                                                                                                       t_now,
-                                                                                                       r_start:r_end,
-                                                                                                       c_start:c_end,
-                                                                                                       :]
-
-                                    if no_ctm:
-                                        one_inp_l_t = np.zeros((block_full_len, block_full_len, 2), dtype=np.float32)
-                                        one_inp_l_t[r_start_local:r_end_local, c_start_local:c_end_local, 0] += \
-                                            t_mtx[0, t_now, r_start:r_end, c_start:c_end, r, c]
-                                        one_inp_l_t[r_start_local:r_end_local, c_start_local:c_end_local, 0] += \
-                                            t_mtx[1, t_now, r_start:r_end, c_start:c_end, r, c]
-                                        one_inp_l_t[r_start_local:r_end_local, c_start_local:c_end_local, 1] += \
-                                            t_mtx[0, t_now, r, c, r_start:r_end, c_start:c_end]
-                                        one_inp_l_t[r_start_local:r_end_local, c_start_local:c_end_local, 1] += \
-                                            t_mtx[1, t_now, r, c, r_start:r_end, c_start:c_end]
-
-                                inp_l_sample.append(np.concatenate([one_inp_l, one_inp_l_t], axis=-1) if no_ctm else one_inp_l)
-                                inp_ex_sample.append(ex_mtx[t_now, :])
+                            for int_cnt in range(n_wd_times):
+                                t_hist.append(s_time_w + int_cnt)
 
                         """ start the samplings of previous days"""
-                        for hist_day_cnt in range(n_hist_day):
+                        for hist_day_cnt in range(n_d):
                             """ define the start time in previous days """
-                            s_time_d = int(t - (n_hist_day - hist_day_cnt) * self.pmt.n_int_day - n_int_before)
+                            s_time_d = int(t - (n_d - hist_day_cnt) * self.pmt['n_int'] - n_before)
 
                             """ generate samples from the previous days """
-                            for int_cnt in range(n_hist_int):
-                                t_now = s_time_d + int_cnt
-
-                                if not local_block_len_g:
-                                    one_inp_g = data_mtx[t_now, ...]
-
-                                    if no_ctm:
-                                        one_inp_g_t = np.zeros((data_shape[1], data_shape[2], 2), dtype=np.float32)
-
-                                        one_inp_g_t[..., 0] += t_mtx[0, t_now, ..., r, c]
-                                        one_inp_g_t[..., 0] += t_mtx[1, t_now, ..., r, c]
-                                        one_inp_g_t[..., 1] += t_mtx[0, t_now, r, c, ...]
-                                        one_inp_g_t[..., 1] += t_mtx[1, t_now, r, c, ...]
-
-                                else:
-                                    one_inp_g = np.zeros((block_full_len_g, block_full_len_g, 2), dtype=np.float32)
-                                    one_inp_g[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g,
-                                    :] = data_mtx[
-                                         t_now,
-                                         r_start_g:r_end_g,
-                                         c_start_g:c_end_g,
-                                         :]
-
-                                    if no_ctm:
-                                        one_inp_g_t = np.zeros((block_full_len_g, block_full_len_g, 2),
-                                                               dtype=np.float32)
-                                        one_inp_g_t[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g,
-                                        0] += \
-                                            t_mtx[0, t_now, r_start_g:r_end_g, c_start_g:c_end_g, r, c]
-                                        one_inp_g_t[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g,
-                                        0] += \
-                                            t_mtx[1, t_now, r_start_g:r_end_g, c_start_g:c_end_g, r, c]
-                                        one_inp_g_t[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g,
-                                        1] += \
-                                            t_mtx[0, t_now, r, c, r_start_g:r_end_g, c_start_g:c_end_g]
-                                        one_inp_g_t[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g,
-                                        1] += \
-                                            t_mtx[1, t_now, r, c, r_start_g:r_end_g, c_start_g:c_end_g]
-
-                                inp_g_sample.append(
-                                    np.concatenate([one_inp_g, one_inp_g_t], axis=-1) if no_ctm else one_inp_g)
-
-                                if not local_block_len:
-                                    one_inp_l = data_mtx[t_now, ...]
-
-                                    if no_ctm:
-                                        one_inp_l_t = np.zeros((data_shape[1], data_shape[2], 2), dtype=np.float32)
-
-                                        one_inp_l_t[..., 0] += t_mtx[0, t_now, ..., r, c]
-                                        one_inp_l_t[..., 0] += t_mtx[1, t_now, ..., r, c]
-                                        one_inp_l_t[..., 1] += t_mtx[0, t_now, r, c, ...]
-                                        one_inp_l_t[..., 1] += t_mtx[1, t_now, r, c, ...]
-
-                                else:
-                                    one_inp_l = np.zeros((block_full_len, block_full_len, 2), dtype=np.float32)
-                                    one_inp_l[...] = data_mtx[t_now, r, c, :]
-                                    one_inp_l[r_start_local:r_end_local, c_start_local:c_end_local, :] = data_mtx[
-                                                                                                       t_now,
-                                                                                                       r_start:r_end,
-                                                                                                       c_start:c_end,
-                                                                                                       :]
-
-                                    if no_ctm:
-                                        one_inp_l_t = np.zeros((block_full_len, block_full_len, 2), dtype=np.float32)
-                                        one_inp_l_t[r_start_local:r_end_local, c_start_local:c_end_local, 0] += \
-                                            t_mtx[0, t_now, r_start:r_end, c_start:c_end, r, c]
-                                        one_inp_l_t[r_start_local:r_end_local, c_start_local:c_end_local, 0] += \
-                                            t_mtx[1, t_now, r_start:r_end, c_start:c_end, r, c]
-                                        one_inp_l_t[r_start_local:r_end_local, c_start_local:c_end_local, 1] += \
-                                            t_mtx[0, t_now, r, c, r_start:r_end, c_start:c_end]
-                                        one_inp_l_t[r_start_local:r_end_local, c_start_local:c_end_local, 1] += \
-                                            t_mtx[1, t_now, r, c, r_start:r_end, c_start:c_end]
-
-                                inp_l_sample.append(np.concatenate([one_inp_l, one_inp_l_t], axis=-1) if no_ctm else one_inp_l)
-                                inp_ex_sample.append(ex_mtx[t_now, :])
+                            for int_cnt in range(n_wd_times):
+                                t_hist.append(s_time_d + int_cnt)
 
                         """ sampling of inputs of current day, the details are similar to those mentioned above """
-                        for int_cnt in range(n_curr_int):
-                            t_now = int(t - (n_curr_int - int_cnt))
+                        for int_cnt in range(n_p):
+                            t_hist.append(t - n_p + int_cnt)
 
-                            if not local_block_len_g:
+                        for t_now in t_hist:
+                            if not l_half_g:
                                 one_inp_g = data_mtx[t_now, ...]
 
-                                if no_ctm:
+                                if crowd_flow:
                                     one_inp_g_t = np.zeros((data_shape[1], data_shape[2], 2), dtype=np.float32)
 
-                                    one_inp_g_t[..., 0] += t_mtx[0, t_now, ..., r, c]
-                                    one_inp_g_t[..., 0] += t_mtx[1, t_now, ..., r, c]
-                                    one_inp_g_t[..., 1] += t_mtx[0, t_now, r, c, ...]
-                                    one_inp_g_t[..., 1] += t_mtx[1, t_now, r, c, ...]
+                                    one_inp_g_t[..., 0] += t_mtx[t_now, ..., r, c, 0]
+                                    one_inp_g_t[..., 0] += t_mtx[t_now, ..., r, c, 1]
+                                    one_inp_g_t[..., 1] += t_mtx[t_now, r, c, ..., 0]
+                                    one_inp_g_t[..., 1] += t_mtx[t_now, r, c, ..., 1]
 
                             else:
-                                one_inp_g = np.zeros((block_full_len_g, block_full_len_g, 2), dtype=np.float32)
-                                one_inp_g[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g,
-                                :] = data_mtx[
-                                     t_now,
-                                     r_start_g:r_end_g,
-                                     c_start_g:c_end_g,
-                                     :]
+                                one_inp_g = np.zeros((l_full_g, l_full_g, 2), dtype=np.float32)
+                                one_inp_g[r_start_g_l:r_end_g_l, c_start_g_l:c_end_g_l, :] = \
+                                    data_mtx[t_now, r_start_g:r_end_g, c_start_g:c_end_g, :]
 
-                                if no_ctm:
-                                    one_inp_g_t = np.zeros((block_full_len_g, block_full_len_g, 2),
-                                                           dtype=np.float32)
-                                    one_inp_g_t[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g,
-                                    0] += \
-                                        t_mtx[0, t_now, r_start_g:r_end_g, c_start_g:c_end_g, r, c]
-                                    one_inp_g_t[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g,
-                                    0] += \
-                                        t_mtx[1, t_now, r_start_g:r_end_g, c_start_g:c_end_g, r, c]
-                                    one_inp_g_t[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g,
-                                    1] += \
-                                        t_mtx[0, t_now, r, c, r_start_g:r_end_g, c_start_g:c_end_g]
-                                    one_inp_g_t[r_start_local_g:r_end_local_g, c_start_local_g:c_end_local_g,
-                                    1] += \
-                                        t_mtx[1, t_now, r, c, r_start_g:r_end_g, c_start_g:c_end_g]
+                                if crowd_flow:
+                                    one_inp_g_t = np.zeros((l_full_g, l_full_g, 2), dtype=np.float32)
+                                    one_inp_g_t[r_start_g_l:r_end_g_l, c_start_g_l:c_end_g_l, 0] += \
+                                        t_mtx[t_now, r_start_g:r_end_g, c_start_g:c_end_g, r, c, 0]
+                                    one_inp_g_t[r_start_g_l:r_end_g_l, c_start_g_l:c_end_g_l, 0] += \
+                                        t_mtx[t_now, r_start_g:r_end_g, c_start_g:c_end_g, r, c, 1]
+                                    one_inp_g_t[r_start_g_l:r_end_g_l, c_start_g_l:c_end_g_l, 1] += \
+                                        t_mtx[t_now, r, c, r_start_g:r_end_g, c_start_g:c_end_g, 0]
+                                    one_inp_g_t[r_start_g_l:r_end_g_l, c_start_g_l:c_end_g_l, 1] += \
+                                        t_mtx[t_now, r, c, r_start_g:r_end_g, c_start_g:c_end_g, 1]
 
-                            inp_g_sample.append(
-                                np.concatenate([one_inp_g, one_inp_g_t], axis=-1) if no_ctm else one_inp_g)
+                            dae_inp_g_sample.append(
+                                np.concatenate([one_inp_g, one_inp_g_t], axis=-1) if crowd_flow else one_inp_g)
 
-                            if not local_block_len:
-                                one_inp_l = data_mtx[t_now, ...]
+                            if not l_half:
+                                one_inp = data_mtx[t_now, ...]
 
-                                if no_ctm:
-                                    one_inp_l_t = np.zeros((data_shape[1], data_shape[2], 2), dtype=np.float32)
+                                if crowd_flow:
+                                    one_inp_t = np.zeros((data_shape[1], data_shape[2], 2), dtype=np.float32)
 
-                                    one_inp_l_t[..., 0] += t_mtx[0, t_now, ..., r, c]
-                                    one_inp_l_t[..., 0] += t_mtx[1, t_now, ..., r, c]
-                                    one_inp_l_t[..., 1] += t_mtx[0, t_now, r, c, ...]
-                                    one_inp_l_t[..., 1] += t_mtx[1, t_now, r, c, ...]
+                                    one_inp_t[..., 0] += t_mtx[t_now, ..., r, c, 0]
+                                    one_inp_t[..., 0] += t_mtx[t_now, ..., r, c, 1]
+                                    one_inp_t[..., 1] += t_mtx[t_now, r, c, ..., 0]
+                                    one_inp_t[..., 1] += t_mtx[t_now, r, c, ..., 1]
 
                             else:
-                                one_inp_l = np.zeros((block_full_len, block_full_len, 2), dtype=np.float32)
-                                one_inp_l[...] = data_mtx[t_now, r, c, :]
-                                one_inp_l[r_start_local:r_end_local, c_start_local:c_end_local, :] = data_mtx[
-                                                                                                   t_now,
-                                                                                                   r_start:r_end,
-                                                                                                   c_start:c_end,
-                                                                                                   :]
+                                one_inp = np.zeros((l_full, l_full, 2), dtype=np.float32)
+                                if self.same_padding:
+                                    one_inp[...] = data_mtx[t_now, r, c, :]
+                                one_inp[r_start_l:r_end_l, c_start_l:c_end_l, :] = \
+                                    data_mtx[t_now, r_start:r_end, c_start:c_end, :]
 
-                                if no_ctm:
-                                    one_inp_l_t = np.zeros((block_full_len, block_full_len, 2), dtype=np.float32)
-                                    one_inp_l_t[r_start_local:r_end_local, c_start_local:c_end_local, 0] += \
-                                        t_mtx[0, t_now, r_start:r_end, c_start:c_end, r, c]
-                                    one_inp_l_t[r_start_local:r_end_local, c_start_local:c_end_local, 0] += \
-                                        t_mtx[1, t_now, r_start:r_end, c_start:c_end, r, c]
-                                    one_inp_l_t[r_start_local:r_end_local, c_start_local:c_end_local, 1] += \
-                                        t_mtx[0, t_now, r, c, r_start:r_end, c_start:c_end]
-                                    one_inp_l_t[r_start_local:r_end_local, c_start_local:c_end_local, 1] += \
-                                        t_mtx[1, t_now, r, c, r_start:r_end, c_start:c_end]
+                                if crowd_flow:
+                                    one_inp_t = np.zeros((l_full, l_full, 2), dtype=np.float32)
+                                    one_inp_t[r_start_l:r_end_l, c_start_l:c_end_l, 0] += \
+                                        t_mtx[t_now, r_start:r_end, c_start:c_end, r, c, 0]
+                                    one_inp_t[r_start_l:r_end_l, c_start_l:c_end_l, 0] += \
+                                        t_mtx[t_now, r_start:r_end, c_start:c_end, r, c, 1]
+                                    one_inp_t[r_start_l:r_end_l, c_start_l:c_end_l, 1] += \
+                                        t_mtx[t_now, r, c, r_start:r_end, c_start:c_end, 0]
+                                    one_inp_t[r_start_l:r_end_l, c_start_l:c_end_l, 1] += \
+                                        t_mtx[t_now, r, c, r_start:r_end, c_start:c_end, 1]
 
-                            inp_l_sample.append(np.concatenate([one_inp_l, one_inp_l_t], axis=-1) if no_ctm else one_inp_l)
-                            inp_ex_sample.append(ex_mtx[t_now, :])
+                            dae_inp_sample.append(
+                                np.concatenate([one_inp, one_inp_t], axis=-1) if crowd_flow else one_inp)
+                            dae_inp_ex_sample.append(ex_mtx[t_now, :])
 
                         """ append the samples of each node to the overall inputs arrays """
-                        inp_g.append(inp_g_sample)
-                        inp_l.append(inp_l_sample)
-                        inp_ex.append(inp_ex_sample)
+                        dae_inp_g.append(dae_inp_g_sample)
+                        dae_inp.append(dae_inp_sample)
+                        dae_inp_ex.append(dae_inp_ex_sample)
 
-                        dec_inp.append(data_mtx[t - 1: t + n_pred - 1, r, c, :])
-
-                        dec_inp_ex.append(ex_mtx[t - 1: t + n_pred - 1, :])
+                        sad_inp.append(data_mtx[t - 1: t + n_pred - 1, r, c, :])
+                        sad_inp_ex.append(ex_mtx[t - 1: t + n_pred - 1, :])
 
                         cors.append(self.cor_gen.get(r, c))
                         cors_g.append(self.cor_gen_g.get(r, c))
@@ -459,12 +273,12 @@ class DataLoader:
                     break
 
             """ convert the inputs arrays to matrices """
-            inp_g = np.array(inp_g, dtype=np.float32)
-            inp_l = np.array(inp_l, dtype=np.float32)
-            inp_ex = np.array(inp_ex, dtype=np.float32)
+            dae_inp_g = np.array(dae_inp_g, dtype=np.float32)
+            dae_inp = np.array(dae_inp, dtype=np.float32)
+            dae_inp_ex = np.array(dae_inp_ex, dtype=np.float32)
 
-            dec_inp = np.array(dec_inp, dtype=np.float32)
-            dec_inp_ex = np.array(dec_inp_ex, dtype=np.float32)
+            sad_inp = np.array(sad_inp, dtype=np.float32)
+            sad_inp_ex = np.array(sad_inp_ex, dtype=np.float32)
 
             cors = np.array(cors, dtype=np.float32)
             cors_g = np.array(cors_g, dtype=np.float32)
@@ -472,69 +286,59 @@ class DataLoader:
             y = np.array(y, dtype=np.float32)
 
             if st_revert:
-                inp_g = inp_g.transpose((0, 2, 3, 1, 4))
-                inp_l = inp_l.transpose((0, 2, 3, 1, 4))
+                dae_inp_g = dae_inp_g.transpose((0, 2, 3, 1, 4))
+                dae_inp = dae_inp.transpose((0, 2, 3, 1, 4))
 
             """ save the matrices """
-            if not self.test_model and not no_save:
+            if not (self.test_model or no_save):
                 print('Saving .npz files...')
-                np.savez_compressed("data/inp_g_{}_{}.npz".format(self.dataset, datatype), data=inp_g)
-                np.savez_compressed("data/inp_l_{}_{}.npz".format(self.dataset, datatype), data=inp_l)
-                np.savez_compressed("data/inp_ex_{}_{}.npz".format(self.dataset, datatype), data=inp_ex)
-                np.savez_compressed("data/dec_inp_{}_{}.npz".format(self.dataset, datatype), data=dec_inp)
-                np.savez_compressed("data/dec_inp_ex_{}_{}.npz".format(self.dataset, datatype), data=dec_inp_ex)
+                np.savez_compressed("data/dae_inp_g_{}_{}.npz".format(self.dataset, datatype), data=dae_inp_g)
+                np.savez_compressed("data/dae_inp_{}_{}.npz".format(self.dataset, datatype), data=dae_inp)
+                np.savez_compressed("data/dae_inp_ex_{}_{}.npz".format(self.dataset, datatype), data=dae_inp_ex)
+                np.savez_compressed("data/sad_inp_{}_{}.npz".format(self.dataset, datatype), data=sad_inp)
+                np.savez_compressed("data/sad_inp_ex_{}_{}.npz".format(self.dataset, datatype), data=sad_inp_ex)
                 np.savez_compressed("data/cors_{}_{}.npz".format(self.dataset, datatype), data=cors)
                 np.savez_compressed("data/cors_g_{}_{}.npz".format(self.dataset, datatype), data=cors_g)
                 np.savez_compressed("data/y_{}_{}.npz".format(self.dataset, datatype), data=y)
-                
-            if self.pre_shuffle and datatype == 'train':
-                inp_shape = inp_g.shape[0]
-                train_size = int(inp_shape * 0.8)
-                data_ind = np.random.permutation(inp_shape)
 
-                inp_g = np.split(inp_g[data_ind, ...], (train_size,))
-                inp_l = np.split(inp_l[data_ind, ...], (train_size,))
-                inp_ex = np.split(inp_ex[data_ind, ...], (train_size,))
+        if self.pre_shuffle and datatype == 'train':
+            inp_shape = dae_inp_g.shape[0]
+            train_size = int(inp_shape * 0.8)
+            random_index = np.random.permutation(inp_shape)
 
-                dec_inp = np.split(dec_inp[data_ind, ...], (train_size,))
-                dec_inp_ex = np.split(dec_inp_ex[data_ind, ...], (train_size,))
+            dae_inp_g = np.split(dae_inp_g[random_index, ...], (train_size,))
+            dae_inp = np.split(dae_inp[random_index, ...], (train_size,))
+            dae_inp_ex = np.split(dae_inp_ex[random_index, ...], (train_size,))
 
-                cors = np.split(cors[data_ind, ...], (train_size,))
-                cors_g = np.split(cors_g[data_ind, ...], (train_size,))
+            sad_inp = np.split(sad_inp[random_index, ...], (train_size,))
+            sad_inp_ex = np.split(sad_inp_ex[random_index, ...], (train_size,))
 
-                y = np.split(y[data_ind, ...], (train_size,))
+            cors = np.split(cors[random_index, ...], (train_size,))
+            cors_g = np.split(cors_g[random_index, ...], (train_size,))
 
-            return inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y
+            y = np.split(y[random_index, ...], (train_size,))
+
+        return dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y
 
 
 if __name__ == "__main__":
-    dl = DataLoader(64, test_model=100)
-    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data()
-    exit(0)
-    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(datatype='val')
-    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(datatype='test')
-    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
-    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
-                                                                                datatype='val')
-    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
-                                                                                datatype='test')
+    dl = DataLoader(64)
+    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data()
+    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(datatype='test')
+    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
+    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
+                                                                                            datatype='test')
 
-    dl = DataLoader(64, dataset='bike')
-    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data()
-    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(datatype='val')
-    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(datatype='test')
-    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
-    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
-                                                                                datatype='val')
-    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
-                                                                                datatype='test')
+    # dl = DataLoader(64, dataset='bike')
+    # dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data()
+    # dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(datatype='test')
+    # dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
+    # dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
+    #                                                                             datatype='test')
 
-    dl = DataLoader(64, dataset='ctm')
-    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data()
-    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(datatype='val')
-    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(datatype='test')
-    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
-    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
-                                                                                datatype='val')
-    inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
-                                                                                datatype='test')
+    # dl = DataLoader(64, dataset='ctm')
+    # dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data()
+    # dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(datatype='test')
+    # dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
+    # dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
+    #                                                                             datatype='test')

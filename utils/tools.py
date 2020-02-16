@@ -5,46 +5,50 @@ import tensorflow as tf
 
 
 class DatasetGenerator:
-    def __init__(self, d_model=64, dataset='taxi', batch_size=64, n_hist_week=1, n_hist_day=3, n_hist_int=1,
-                 n_curr_int=1, n_int_before=0, n_pred=6, local_block_len=3, local_block_len_g=5, pre_shuffle=True, test_model=False):
+    def __init__(self, d_model=64, dataset='taxi', batch_size=64, n_w=1, n_d=3, n_wd_times=1, n_p=1, n_before=0,
+                 n_pred=12, l_half=3, l_half_g=5, pre_shuffle=True, same_padding=False, test_model=False):
         self.d_model = d_model
         self.dataset = dataset
         self.batch_size = batch_size
-        self.n_hist_week = n_hist_week
-        self.n_hist_day = n_hist_day
-        self.n_hist_int = n_hist_int
-        self.n_curr_int = n_curr_int
-        self.n_int_before = n_int_before
+        self.n_w = n_w
+        self.n_d = n_d
+        self.n_wd_times = n_wd_times
+        self.n_p = n_p
+        self.n_before = n_before
         self.n_pred = n_pred
-        self.local_block_len = local_block_len
-        self.local_block_len_g = local_block_len_g
+        self.l_half = l_half
+        self.l_half_g = l_half_g
         self.pre_shuffle = pre_shuffle
+        self.same_padding = same_padding
         self.test_model = test_model
 
-    def load_data(self, datatype, st_revert=False, no_save=False, load_saved_data=False):
-        data_loader = dl(self.d_model, self.dataset, self.local_block_len, self.local_block_len_g, self.pre_shuffle, self.test_model)
-        inp_g, inp_l, inp_ex, dec_inp, dec_inp_ex, cors, cors_g, y = data_loader.generate_data(
+        self.val_set = None
+
+    def load_data(self, datatype, load_saved_data=False, st_revert=False, no_save=False):
+        data_loader = dl(self.d_model, self.dataset, self.l_half, self.l_half_g,
+                         self.pre_shuffle, self.same_padding, self.test_model)
+        dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = data_loader.generate_data(
             datatype,
-            self.n_hist_week,
-            self.n_hist_day,
-            self.n_hist_int,
-            self.n_curr_int,
-            self.n_int_before,
+            self.n_w,
+            self.n_d,
+            self.n_wd_times,
+            self.n_p,
+            self.n_before,
             self.n_pred,
+            load_saved_data,
             st_revert,
-            no_save,
-            load_saved_data
+            no_save
         )
-        
+
         if self.pre_shuffle and datatype == 'train':
             train_set = tf.data.Dataset.from_tensor_slices(
                 (
                     {
-                        "inp_g": inp_g[0],
-                        "inp_l": inp_l[0],
-                        "inp_ex": inp_ex[0],
-                        "dec_inp": dec_inp[0],
-                        "dec_inp_ex": dec_inp_ex[0],
+                        "dae_inp_g": dae_inp_g[0],
+                        "dae_inp": dae_inp[0],
+                        "dae_inp_ex": dae_inp_ex[0],
+                        "sad_inp": sad_inp[0],
+                        "sad_inp_ex": sad_inp_ex[0],
                         "cors": cors[0],
                         "cors_g": cors_g[0]
                     },
@@ -57,11 +61,11 @@ class DatasetGenerator:
             val_set = tf.data.Dataset.from_tensor_slices(
                 (
                     {
-                        "inp_g": inp_g[1],
-                        "inp_l": inp_l[1],
-                        "inp_ex": inp_ex[1],
-                        "dec_inp": dec_inp[1],
-                        "dec_inp_ex": dec_inp_ex[1],
+                        "dae_inp_g": dae_inp_g[1],
+                        "dae_inp": dae_inp[1],
+                        "dae_inp_ex": dae_inp_ex[1],
+                        "sad_inp": sad_inp[1],
+                        "sad_inp_ex": sad_inp_ex[1],
                         "cors": cors[1],
                         "cors_g": cors_g[1]
                     },
@@ -71,18 +75,16 @@ class DatasetGenerator:
                 )
             )
 
-            return [train_set, val_set], inp_g[0].shape[0]
-        elif self.pre_shuffle and datatype == 'val':
-            return None, None
+            return [train_set, val_set], dae_inp_g[0].shape[0]
         else:
             dataset = tf.data.Dataset.from_tensor_slices(
                 (
                     {
-                        "inp_g": inp_g,
-                        "inp_l": inp_l,
-                        "inp_ex": inp_ex,
-                        "dec_inp": dec_inp,
-                        "dec_inp_ex": dec_inp_ex,
+                        "dae_inp_g": dae_inp_g,
+                        "dae_inp": dae_inp,
+                        "dae_inp_ex": dae_inp_ex,
+                        "sad_inp": sad_inp,
+                        "sad_inp_ex": sad_inp_ex,
                         "cors": cors,
                         "cors_g": cors_g
                     },
@@ -92,28 +94,37 @@ class DatasetGenerator:
                 )
             )
 
-            return dataset, inp_g.shape[0]
+            return dataset, dae_inp_g.shape[0]
 
     def build_dataset(self, datatype='train', load_saved_data=False, strategy=None, st_revert=False, no_save=None):
         assert datatype in ['train', 'val', 'test']
 
-        dataset, data_size = self.load_data(datatype, st_revert, no_save, load_saved_data)
+        if datatype == 'val' and self.pre_shuffle:
+            assert self.val_set
+            pass
+        else:
+            dataset, data_size = self.load_data(datatype, load_saved_data, st_revert, no_save)
 
         if datatype == 'train':
             if not self.pre_shuffle:
-                dataset_out = dataset.shuffle(data_size).batch(self.batch_size).cache().prefetch(tf.data.experimental.AUTOTUNE)
+                dataset_out = dataset.shuffle(data_size).batch(self.batch_size).cache().prefetch(
+                    tf.data.experimental.AUTOTUNE)
             else:
                 self.val_set = dataset[1]
-                dataset_out = dataset[0].shuffle(data_size).batch(self.batch_size).cache().prefetch(tf.data.experimental.AUTOTUNE)
+                dataset_out = dataset[0].shuffle(data_size).batch(self.batch_size).cache().prefetch(
+                    tf.data.experimental.AUTOTUNE)
         elif datatype == 'val':
             if not self.pre_shuffle:
                 dataset_out = dataset.batch(self.batch_size) \
                     .cache().prefetch(tf.data.experimental.AUTOTUNE)
             else:
                 dataset_out = self.val_set.batch(self.batch_size) \
-                .cache().prefetch(tf.data.experimental.AUTOTUNE)
+                    .cache().prefetch(tf.data.experimental.AUTOTUNE)
         else:
-            dataset_out = dataset.batch(self.batch_size)
+            if self.batch_size == 1:
+                dataset_out = dataset.shuffle(data_size).batch(self.batch_size)
+            else:
+                dataset_out = dataset.batch(self.batch_size)
 
         return strategy.experimental_distribute_dataset(dataset_out) if strategy else dataset_out
 
@@ -129,12 +140,14 @@ def create_look_ahead_mask(size):
     mask = 1 - tf.linalg.band_part(tf.ones((size, size)), -1, 0)
     return mask
 
+
 def create_padding_mask(inp):
     oup = tf.math.reduce_sum(inp, axis=-1)
     shape = tf.shape(oup)
     oup = tf.reshape(oup, [shape[0], shape[1], -1])
     mask = tf.cast(tf.math.equal(oup, 0), tf.float32)
     return mask
+
 
 def create_padding_mask_tar(inp):
     oup = tf.math.reduce_sum(inp, axis=-1)
@@ -151,6 +164,7 @@ def create_masks(inp_g, inp_l, tar):
     combined_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
 
     return padding_mask_g, padding_mask, combined_mask
+
 
 if __name__ == "__main__":
     dg = DatasetGenerator()

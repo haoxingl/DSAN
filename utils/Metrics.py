@@ -29,6 +29,7 @@ class MAE(tf.keras.metrics.Mean):
     def result(self):
         return math.divide_no_nan(self.total, self.count)
 
+
 class MAPE(tf.keras.metrics.Mean):
     def __init__(self, name='MAPE', dtype=tf.float32):
         super(MAPE, self).__init__(name, dtype=dtype)
@@ -36,7 +37,7 @@ class MAPE(tf.keras.metrics.Mean):
     def update_state(self, y_true, y_pred, sample_weight=None):
         y_true = tf.cast(y_true, tf.float32)
         y_pred = tf.cast(y_pred, tf.float32)
-        error = 100 * math.abs(math.subtract(y_true, y_pred))/y_true
+        error = 100 * math.abs(math.subtract(y_true, y_pred)) / y_true
         return super(MAPE, self).update_state(error, sample_weight=sample_weight)
 
     def result(self):
