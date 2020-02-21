@@ -41,7 +41,9 @@ class Convs(layers.Layer):
         self.n_layer = n_layer
         self.l_hist = l_hist
 
-        self.convs = [layers.Conv2D(n_filter, (3, 3), activation=act, padding='same') for _ in range(n_layer)]
+        self.convs = [[layers.Conv2D(n_filter, (3, 3), activation=act, padding='same')
+                       for _ in range(l_hist)] for _ in range(n_layer)]
+        self.batchnorms = [[layers.BatchNormalization(epsilon=1e-6) for _ in range(l_hist)] for _ in range(n_layer - 1)]
         self.dropouts = [[layers.Dropout(r_d) for _ in range(l_hist)] for _ in range(n_layer)]
 
     def call(self, inps, training):
@@ -50,14 +52,15 @@ class Convs(layers.Layer):
             for j in range(self.l_hist):
                 if i == 0:
                     outputs[j] = tf.squeeze(outputs[j], axis=1)
-                outputs[j] = self.convs[i](outputs[j])
+                outputs[j] = self.batchnorms[i - 1][j](outputs[j] + self.convs[i][j](outputs[j])) \
+                    if i != 0 else self.convs[i][j](outputs[j])
                 outputs[j] = self.dropouts[i][j](outputs[j], training=training)
                 if i == self.n_layer - 1:
                     outputs[j] = tf.expand_dims(outputs[j], axis=1)
 
-        outputs = tf.concat(outputs, axis=1)
+        output = tf.concat(outputs, axis=1)
 
-        return outputs
+        return output
 
 
 def scaled_dot_product_attention(q, k, v, mask=None):
@@ -237,7 +240,7 @@ class SAD(layers.Layer):
         self.ex_encoder = ex_encoding(d_model, dff)
         self.dropout = layers.Dropout(r_d)
 
-        self.li_conv = Sequential([layers.Dense(d_model, activation=act) for _ in range(conv_layer)])
+        self.li_conv = Sequential([layers.Dense(d_model, activation=act) for _ in range(1)])
 
         self.att_s = [STAttLayer(d_model, n_head, dff, r_d) for _ in range(n_layer)]
         self.att_t = [STAttLayer(d_model, n_head, dff, r_d, revert_q=True) for _ in range(n_layer)]

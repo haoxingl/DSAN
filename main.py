@@ -9,12 +9,12 @@ from utils.tools import write_result
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike or ctm')
 parser.add_argument('--gpu_ids', default='0, 1, 2, 3', help='indexes of gpus to use')
-parser.add_argument('--memory_growth', default=True)
-parser.add_argument('--index', default=11, help='indexes of model to be trained')
-parser.add_argument('--test_name', default="new_arch")
-parser.add_argument('--hyp', default=[1])
+parser.add_argument('--memory_growth', default=False)
+parser.add_argument('--index', default=1, help='indexes of model to be trained')
+parser.add_argument('--test_name', default=None)
+parser.add_argument('--hyp', default=None)
 parser.add_argument('--run_time', default=3)
-parser.add_argument('--remove_old_files', default=True)
+parser.add_argument('--remove_old_files', default=False)
 parser.add_argument('--load_saved_data', default=False)
 parser.add_argument('--no_save', default=False)
 parser.add_argument('--test_model', default=None)
@@ -28,13 +28,13 @@ parser.add_argument('--d_model', default=d_model, help='model dimension')
 parser.add_argument('--dff', default=d_model * 4, help='dimension of feed-forward networks')
 parser.add_argument('--n_head', default=8, help='number of attention heads')
 parser.add_argument('--r_d', default=0.1)
-parser.add_argument('--conv_layer', default=1)
+parser.add_argument('--conv_layer', default=3)
 parser.add_argument('--conv_filter', default=d_model)
 
 """ Training settings """
 weights_t = np.array([1 for _ in range(12)], dtype=np.float32)[:, np.newaxis]
 weights_f = np.array([1 for _ in range(2)], dtype=np.float32)[np.newaxis, :]
-weights = weights_t * weights_f
+weights = None
 parser.add_argument('--MAX_EPOCH', default=250)
 parser.add_argument('--BATCH_SIZE', default=128)
 parser.add_argument('--warmup_steps', default=4000)

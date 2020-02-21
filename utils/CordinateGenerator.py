@@ -42,9 +42,9 @@ class CordinateGenerator:
                     pos_cors = self.spatial_posenc(mtx_r_flat, mtx_c_flat)
                     dict[cor] = np.array(pos_cors, dtype=np.float32)
         else:
-            full_len = 2 * l_half + 1
-            mtx_r = np.repeat(np.arange(full_len)[:, np.newaxis], [full_len], axis=1)
-            mtx_c = np.repeat(np.arange(full_len)[np.newaxis, :], [full_len], axis=0)
+            l_full = 2 * l_half + 1
+            mtx_r = np.repeat(np.arange(l_full)[:, np.newaxis], [l_full], axis=1)
+            mtx_c = np.repeat(np.arange(l_full)[np.newaxis, :], [l_full], axis=0)
             cor = '[{}, {}]'.format(l_half, l_half)
             mtx_r_flat = (mtx_r - l_half).flatten()[:, np.newaxis]
             mtx_c_flat = (mtx_c - l_half).flatten()[:, np.newaxis]

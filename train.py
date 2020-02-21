@@ -2,6 +2,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import time, os, codecs, json
 
+import numpy as np
 from utils.tools import DatasetGenerator, write_result, create_masks
 from utils.CustomSchedule import CustomSchedule
 from utils.EarlystopHelper import EarlystopHelper
@@ -160,10 +161,10 @@ class TrainModel:
                 with tf.GradientTape() as tape:
                     predictions, _, _ = dsan(dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, True,
                                              padding_mask, padding_mask_g, combined_mask)
-                    if weights.any():
-                        loss = loss_function(y, predictions)
-                    else:
+                    if type(weights) is np.ndarray:
                         loss = loss_function(y * weights, predictions * weights)
+                    else:
+                        loss = loss_function(y, predictions)
 
                 gradients = tape.gradient(loss, dsan.trainable_variables)
                 optimizer.apply_gradients(zip(gradients, dsan.trainable_variables))
@@ -192,8 +193,8 @@ class TrainModel:
 
                     """ here we filter out all nodes where their real flows are less than 10 """
                     for j in range(pred_type):
-                        real = y[:, i, j] * weights[i, j] / n_pred
-                        pred = predictions[:, -1, j] * weights[i, j] / n_pred
+                        real = y[:, i, j] * (weights[i, j] if type(weights) is np.ndarray else 1)
+                        pred = predictions[:, -1, j] * (weights[i, j] if type(weights) is np.ndarray else 1)
                         mask = tf.where(tf.math.greater(real, self.test_threshold[j]))
                         masked_real = tf.gather_nd(real, mask)
                         masked_pred = tf.gather_nd(pred, mask)
@@ -321,13 +322,13 @@ class TrainModel:
                 if check_flag:
                     evaluate(val_dataset, epoch, final_test=False)
                     es_rmse = [0.0 for _ in range(pred_type)]
-                    for i in range(n_pred):
-                        for j in range(pred_type):
-                            if weights.any():
-                                es_rmse[j] += float(rmse_test[i][j].result().numpy() * weights[i, j] / n_pred)
+                    for i in range(pred_type):
+                        for j in range(n_pred):
+                            if type(weights) is np.ndarray:
+                                es_rmse[i] += float(rmse_test[j][i].result().numpy() * weights[j, i] / n_pred)
                             else:
-                                es_rmse[j] += float(rmse_test[i][j].result().numpy()) / n_pred
-                        tf_summary_scalar(summary_writer, "rmse_test_{}".format(data_name[j]), es_rmse[j], epoch + 1)
+                                es_rmse[i] += float(rmse_test[j][i].result().numpy() / n_pred)
+                        tf_summary_scalar(summary_writer, "rmse_test_{}".format(data_name[i]), es_rmse[i], epoch + 1)
                     es_flag = es_helper.check(es_rmse[0] + es_rmse[1], epoch)
                     tf_summary_scalar(summary_writer, "best_epoch", es_helper.get_bestepoch(), epoch + 1)
                     if args.always_test and (epoch + 1) % args.always_test == 0:
