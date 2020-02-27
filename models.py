@@ -141,9 +141,34 @@ def ex_encoding(d_model, dff):
     ])
 
 
-class STAttLayer(layers.Layer):
+class EncoderLayer(layers.Layer):
+    def __init__(self, d_model, num_heads, dff, dpo_rate=0.1):
+        super(EncoderLayer, self).__init__()
+
+        self.mha = MultiHeadAttention(d_model, num_heads)
+        self.ffn = point_wise_feed_forward_network(d_model, dff)
+
+        self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
+        self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
+
+        self.dropout1 = layers.Dropout(dpo_rate)
+        self.dropout2 = layers.Dropout(dpo_rate)
+
+    def call(self, x, training, mask):
+        attn_output, _ = self.mha(x, x, x, mask)
+        attn_output = self.dropout1(attn_output, training=training)
+        out1 = self.layernorm1(x + attn_output)
+
+        ffn_output = self.ffn(out1)
+        ffn_output = self.dropout2(ffn_output, training=training)
+        out2 = self.layernorm2(out1 + ffn_output)
+
+        return out2
+
+
+class DecoderLayer(layers.Layer):
     def __init__(self, d_model, n_head, dff, r_d=0.1, revert_q=False):
-        super(STAttLayer, self).__init__()
+        super(DecoderLayer, self).__init__()
 
         self.revert_q = revert_q
 
@@ -191,12 +216,15 @@ class DAE(layers.Layer):
 
         self.convs = Convs(conv_layer, conv_filter, l_hist, r_d)
         self.convs_g = Convs(conv_layer, conv_filter, l_hist, r_d)
+        # self.convs = layers.Dense(d_model, activation=act)
+        # self.convs_g = layers.Dense(d_model, activation=act)
 
         self.ex_encoder = ex_encoding(d_model, dff)
         self.dropout = layers.Dropout(r_d)
         self.dropout_g = layers.Dropout(r_d)
 
-        self.att_layers = [STAttLayer(d_model, n_head, dff, r_d) for _ in range(n_layer)]
+        self.enc_g = [EncoderLayer(d_model, n_head, dff, r_d) for _ in range(n_layer)]
+        self.enc_l = [DecoderLayer(d_model, n_head, dff, r_d) for _ in range(n_layer)]
 
     def call(self, x, x_g, ex, cors, cors_g, training, padding_mask, padding_mask_g):
         attention_weights = {}
@@ -209,6 +237,8 @@ class DAE(layers.Layer):
 
         x = self.convs(x, training)
         x_g = self.convs_g(x_g, training)
+        # x = self.convs(x)
+        # x_g = self.convs_g(x_g)
 
         x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
         x_g *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
@@ -223,7 +253,10 @@ class DAE(layers.Layer):
         x_g = self.dropout(x_g, training=training)
 
         for i in range(self.n_layer):
-            x, block1, block2 = self.att_layers[i](x, x_g, training, padding_mask, padding_mask_g)
+            x_g = self.enc_g[i](x_g, training, padding_mask_g)
+
+        for i in range(self.n_layer):
+            x, block1, block2 = self.enc_l[i](x, x_g, training, padding_mask, padding_mask_g)
             attention_weights['dae_layer{}_block1'.format(i + 1)] = block1
             attention_weights['dae_layer{}_block2'.format(i + 1)] = block2
 
@@ -240,10 +273,11 @@ class SAD(layers.Layer):
         self.ex_encoder = ex_encoding(d_model, dff)
         self.dropout = layers.Dropout(r_d)
 
-        self.li_conv = Sequential([layers.Dense(d_model, activation=act) for _ in range(1)])
+        self.li_conv = Sequential([layers.Dense(d_model, activation=act) for _ in range(conv_layer)])
+        # self.li_conv = layers.Dense(d_model, activation=act)
 
-        self.att_s = [STAttLayer(d_model, n_head, dff, r_d) for _ in range(n_layer)]
-        self.att_t = [STAttLayer(d_model, n_head, dff, r_d, revert_q=True) for _ in range(n_layer)]
+        self.att_s = [DecoderLayer(d_model, n_head, dff, r_d) for _ in range(n_layer)]
+        self.att_t = [DecoderLayer(d_model, n_head, dff, r_d, revert_q=True) for _ in range(n_layer)]
 
     def call(self, x, ex, dae_output, training, look_ahead_mask, padding_mask):
         attention_weights = {}
