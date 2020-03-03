@@ -43,7 +43,7 @@ class Convs(layers.Layer):
 
         self.convs = [[layers.Conv2D(n_filter, (3, 3), activation=act, padding='same')
                        for _ in range(l_hist)] for _ in range(n_layer)]
-        self.batchnorms = [[layers.BatchNormalization(epsilon=1e-6) for _ in range(l_hist)] for _ in range(n_layer - 1)]
+        # self.batchnorms = [[layers.BatchNormalization(epsilon=1e-6) for _ in range(l_hist)] for _ in range(n_layer)]
         self.dropouts = [[layers.Dropout(r_d) for _ in range(l_hist)] for _ in range(n_layer)]
 
     def call(self, inps, training):
@@ -52,8 +52,7 @@ class Convs(layers.Layer):
             for j in range(self.l_hist):
                 if i == 0:
                     outputs[j] = tf.squeeze(outputs[j], axis=1)
-                outputs[j] = self.batchnorms[i - 1][j](outputs[j] + self.convs[i][j](outputs[j])) \
-                    if i != 0 else self.convs[i][j](outputs[j])
+                outputs[j] = self.convs[i][j](outputs[j])
                 outputs[j] = self.dropouts[i][j](outputs[j], training=training)
                 if i == self.n_layer - 1:
                     outputs[j] = tf.expand_dims(outputs[j], axis=1)
@@ -250,7 +249,7 @@ class DAE(layers.Layer):
         x_g = x_g + ex_enc + pos_enc_g
 
         x = self.dropout(x, training=training)
-        x_g = self.dropout(x_g, training=training)
+        x_g = self.dropout_g(x_g, training=training)
 
         for i in range(self.n_layer):
             x_g = self.enc_g[i](x_g, training, padding_mask_g)
@@ -276,8 +275,8 @@ class SAD(layers.Layer):
         self.li_conv = Sequential([layers.Dense(d_model, activation=act) for _ in range(conv_layer)])
         # self.li_conv = layers.Dense(d_model, activation=act)
 
-        self.att_s = [DecoderLayer(d_model, n_head, dff, r_d) for _ in range(n_layer)]
-        self.att_t = [DecoderLayer(d_model, n_head, dff, r_d, revert_q=True) for _ in range(n_layer)]
+        self.dec_s = [DecoderLayer(d_model, n_head, dff, r_d) for _ in range(n_layer)]
+        self.dec_t = [DecoderLayer(d_model, n_head, dff, r_d, revert_q=True) for _ in range(n_layer)]
 
     def call(self, x, ex, dae_output, training, look_ahead_mask, padding_mask):
         attention_weights = {}
@@ -291,17 +290,17 @@ class SAD(layers.Layer):
 
         x = self.dropout(x, training=training)
         x_s = tf.expand_dims(x, axis=1)
-        x_t = x_s
+        x_t = tf.expand_dims(x, axis=1)
 
         for i in range(self.n_layer):
-            x_s, block1, block2 = self.att_s[i](x_s, dae_output, training, look_ahead_mask, None)
+            x_s, block1, block2 = self.dec_s[i](x_s, dae_output, training, look_ahead_mask, None)
             attention_weights['sad_s_layer{}_block1'.format(i + 1)] = block1
             attention_weights['sad_s_layer{}_block2'.format(i + 1)] = block2
 
         x_s = tf.transpose(x_s, perm=[0, 2, 1, 3])
 
         for i in range(self.n_layer):
-            x_t, block1, block2 = self.att_t[i](x_t, x_s, training, look_ahead_mask, None)
+            x_t, block1, block2 = self.dec_t[i](x_t, x_s, training, look_ahead_mask, None)
             attention_weights['decoder_t_layer{}_block1'.format(i + 1)] = block1
             attention_weights['decoder_t_layer{}_block2'.format(i + 1)] = block2
 

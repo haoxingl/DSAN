@@ -329,16 +329,16 @@ if __name__ == "__main__":
     dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
                                                                                             datatype='test')
 
-    # dl = DataLoader(64, dataset='bike')
-    # dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data()
-    # dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(datatype='test')
-    # dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
-    # dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
-    #                                                                             datatype='test')
+    dl = DataLoader(64, dataset='bike')
+    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data()
+    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(datatype='test')
+    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
+    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
+                                                                                datatype='test')
 
-    # dl = DataLoader(64, dataset='ctm')
-    # dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data()
-    # dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(datatype='test')
-    # dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
-    # dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
-    #                                                                             datatype='test')
+    dl = DataLoader(64, dataset='ctm')
+    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data()
+    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(datatype='test')
+    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
+    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
+                                                                                datatype='test')

@@ -236,7 +236,8 @@ class TrainModel:
             es_flag = False
             check_flag = False
             es_helper = EarlystopHelper(self.es_patiences, self.es_threshold)
-            summary_writer = tf.summary.create_file_writer(os.environ['HOME'] + '/tensorboard/dsan/{}'.format(self.model_index))
+            summary_writer = tf.summary.create_file_writer(
+                os.environ['HOME'] + '/tensorboard/dsan/{}'.format(self.model_index))
             step_cnt = 0
             last_epoch = 0
 
@@ -325,10 +326,10 @@ class TrainModel:
                     for i in range(pred_type):
                         for j in range(n_pred):
                             if type(weights) is np.ndarray:
-                                es_rmse[i] += float(rmse_test[j][i].result().numpy() * weights[j, i] / n_pred)
+                                es_rmse[i] += float(rmse_test[j][i].result().numpy() * weights[j, i])
                             else:
-                                es_rmse[i] += float(rmse_test[j][i].result().numpy() / n_pred)
-                        tf_summary_scalar(summary_writer, "rmse_test_{}".format(data_name[i]), es_rmse[i], epoch + 1)
+                                es_rmse[i] += float(rmse_test[j][i].result().numpy())
+                        tf_summary_scalar(summary_writer, "rmse_test_{}".format(data_name[i]), es_rmse[i] / n_pred, epoch + 1)
                     es_flag = es_helper.check(es_rmse[0] + es_rmse[1], epoch)
                     tf_summary_scalar(summary_writer, "best_epoch", es_helper.get_bestepoch(), epoch + 1)
                     if args.always_test and (epoch + 1) % args.always_test == 0:

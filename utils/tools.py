@@ -28,17 +28,8 @@ class DatasetGenerator:
         data_loader = dl(self.d_model, self.dataset, self.l_half, self.l_half_g,
                          self.pre_shuffle, self.same_padding, self.test_model)
         dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = data_loader.generate_data(
-            datatype,
-            self.n_w,
-            self.n_d,
-            self.n_wd_times,
-            self.n_p,
-            self.n_before,
-            self.n_pred,
-            load_saved_data,
-            st_revert,
-            no_save
-        )
+            datatype, self.n_w, self.n_d, self.n_wd_times, self.n_p, self.n_before, self.n_pred, load_saved_data,
+            st_revert, no_save)
 
         if self.pre_shuffle and datatype == 'train':
             train_set = tf.data.Dataset.from_tensor_slices(
