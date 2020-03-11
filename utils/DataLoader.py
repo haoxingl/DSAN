@@ -5,7 +5,7 @@ from data_parameters import data_parameters
 
 
 class DataLoader:
-    def __init__(self, d_model, dataset='taxi', l_half=3, l_half_g=5, pre_shuffle=True, same_padding=False,
+    def __init__(self, d_model, dataset='taxi', l_half=3, l_half_g=None, pre_shuffle=True, same_padding=False,
                  test_model=None):
         assert dataset in ['taxi', 'bike', 'ctm']
         self.dataset = dataset
@@ -20,6 +20,7 @@ class DataLoader:
 
     def load_data(self, datatype='train'):
         pred_type = self.pmt['pred_type']
+        data_max = self.pmt['data_max']
         if datatype == 'train':
             data = np.load(self.pmt['data_train'])
         elif datatype == 'val':
@@ -28,15 +29,15 @@ class DataLoader:
             data = np.load(self.pmt['data_test'])
 
         if self.dataset in ['taxi', 'bike']:
-            self.data_mtx = np.array(data['flow'], dtype=np.float32) / np.array(self.pmt['data_max'][:pred_type],
+            self.data_mtx = np.array(data['flow'], dtype=np.float32) / np.array(data_max[:pred_type],
                                                                                 dtype=np.float32)
-            self.t_mtx = np.array(data['trans'], dtype=np.float32) / np.array(self.pmt['data_max'][pred_type:],
+            self.t_mtx = np.array(data['trans'], dtype=np.float32) / np.array(data_max[pred_type:],
                                                                               dtype=np.float32)
-            self.ex_mtx = data['ex_knlg']
         else:
             self.data_mtx = np.array(data['data'], dtype=np.float32)
-            self.data_mtx = self.data_mtx / np.array(self.pmt['data_max'], dtype=np.float32)
-            self.ex_mtx = data['ex_knlg']
+            self.data_mtx = self.data_mtx / np.array(data_max, dtype=np.float32)
+
+        self.ex_mtx = data['ex_knlg']
 
     def generate_data(self, datatype='train', n_w=1, n_d=3, n_wd_times=1, n_p=1, n_before=0, n_pred=12,
                       load_saved_data=False, st_revert=False, no_save=False):

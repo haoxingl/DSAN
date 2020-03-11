@@ -6,7 +6,7 @@ import tensorflow as tf
 
 class DatasetGenerator:
     def __init__(self, d_model=64, dataset='taxi', batch_size=64, n_w=1, n_d=3, n_wd_times=1, n_p=1, n_before=0,
-                 n_pred=12, l_half=3, l_half_g=5, pre_shuffle=True, same_padding=False, test_model=False):
+                 n_pred=12, l_half=3, l_half_g=None, pre_shuffle=True, same_padding=False, test_model=False):
         self.d_model = d_model
         self.dataset = dataset
         self.batch_size = batch_size
