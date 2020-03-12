@@ -135,8 +135,8 @@ def point_wise_feed_forward_network(d_model, dff):
 
 def ex_encoding(d_model, dff):
     return Sequential([
-        layers.Dense(dff, activation=act),
-        layers.Dense(d_model, activation='tanh')
+        layers.Dense(dff),
+        layers.Dense(d_model, activation='sigmoid')
     ])
 
 
@@ -219,6 +219,8 @@ class DAE(layers.Layer):
         # self.convs_g = layers.Dense(d_model, activation=act)
 
         self.ex_encoder = ex_encoding(d_model, dff)
+        self.ex_encoder_g = ex_encoding(d_model, dff)
+
         self.dropout = layers.Dropout(r_d)
         self.dropout_g = layers.Dropout(r_d)
 
@@ -231,6 +233,7 @@ class DAE(layers.Layer):
         shape = tf.shape(x)
 
         ex_enc = tf.expand_dims(self.ex_encoder(ex), axis=2)
+        ex_enc_g = tf.expand_dims(self.ex_encoder_g(ex), axis=2)
         pos_enc = tf.expand_dims(cors, axis=1)
         pos_enc_g = tf.expand_dims(cors_g, axis=1)
 
@@ -246,7 +249,7 @@ class DAE(layers.Layer):
         x_g = tf.reshape(x_g, [shape[0], shape[1], -1, self.d_model])
 
         x = x + ex_enc + pos_enc
-        x_g = x_g + ex_enc + pos_enc_g
+        x_g = x_g + ex_enc_g + pos_enc_g
 
         x = self.dropout(x, training=training)
         x_g = self.dropout_g(x_g, training=training)
@@ -268,6 +271,7 @@ class SAD(layers.Layer):
 
         self.d_model = d_model
         self.n_layer = n_layer
+        self.pos_enc = spatial_posenc(0, 0, self.d_model)
 
         self.ex_encoder = ex_encoding(d_model, dff)
         self.dropout = layers.Dropout(r_d)
@@ -282,11 +286,10 @@ class SAD(layers.Layer):
         attention_weights = {}
 
         ex_enc = self.ex_encoder(ex)
-        pos_enc = spatial_posenc(0, 0, self.d_model)
 
         x = self.li_conv(x)
         x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
-        x = x + ex_enc + pos_enc
+        x = x + ex_enc + self.pos_enc
 
         x = self.dropout(x, training=training)
         x_s = tf.expand_dims(x, axis=1)
