@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import time, os, codecs, json
 
 import numpy as np
-from utils.tools import DatasetGenerator, write_result, create_masks
+from utils.tools import DatasetGenerator, ResultWriter, create_masks
 from utils.CustomSchedule import CustomSchedule
 from utils.EarlystopHelper import EarlystopHelper
 from utils.Metrics import MAE, MAPE
@@ -75,7 +75,7 @@ class TrainModel:
         weights = args.weights
         test_model = args.test_model
 
-        result_output_path = "results/dsan/{}.txt".format(self.model_index)
+        result_writer = ResultWriter("results/{}.txt".format(self.model_index))
 
         train_dataset = self.dataset_generator.build_dataset('train', args.load_saved_data,
                                                              strategy, args.st_revert, args.no_save)
@@ -116,7 +116,7 @@ class TrainModel:
                             template_mape += ' {}. {:.2f}'.format(j + 1, mape_test[j][i].result())
                         template_mape += '\n'
                     template = "Final:\n" + template_rmse + template_mae + template_mape
-                    write_result(result_output_path, template)
+                    result_writer.write(template)
                 else:
                     template = "Epoch {} RMSE:\n".format(epoch + 1)
                     for i in range(pred_type):
@@ -124,8 +124,7 @@ class TrainModel:
                         for j in range(n_pred):
                             template += " {}. {:.6f}".format(j + 1, rmse_test[j][i].result())
                         template += "\n"
-                    write_result(result_output_path,
-                                 'Validation Result (Min-Max Norm, filtering out trivial grids):\n' + template)
+                    result_writer.write('Validation Result (Min-Max Norm, filtering out trivial grids):\n' + template)
 
             loss_object = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
 
@@ -233,6 +232,7 @@ class TrainModel:
                     print_verbose(epoch, final_test)
 
             """ Start training... """
+            built = False
             es_flag = False
             check_flag = False
             es_helper = EarlystopHelper(self.es_patiences, self.es_threshold)
@@ -241,7 +241,7 @@ class TrainModel:
             step_cnt = 0
             last_epoch = 0
 
-            checkpoint_path = "./checkpoints/dsan/{}".format(self.model_index)
+            checkpoint_path = "./checkpoints/{}".format(self.model_index)
 
             ckpt = tf.train.Checkpoint(DSAN=dsan, optimizer=optimizer)
 
@@ -252,6 +252,7 @@ class TrainModel:
                 with codecs.open(checkpoint_path + '/ckpt_record.json', encoding='utf-8') as json_file:
                     ckpt_record = json.load(json_file)
 
+                built = ckpt_record['built']
                 last_epoch = ckpt_record['epoch']
                 es_flag = ckpt_record['es_flag']
                 check_flag = ckpt_record['check_flag']
@@ -259,9 +260,9 @@ class TrainModel:
                 step_cnt = ckpt_record['step_cnt']
 
                 ckpt.restore(ckpt_manager.checkpoints[-1])
-                write_result(result_output_path, "Check point restored at epoch {}".format(last_epoch))
+                result_writer.write("Check point restored at epoch {}".format(last_epoch))
 
-            write_result(result_output_path, "Start training...\n")
+            result_writer.write("Start training...\n")
 
             for epoch in range(last_epoch, args.MAX_EPOCH + 1):
 
@@ -294,6 +295,10 @@ class TrainModel:
                     total_loss = distributed_train_step(
                         dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y)
 
+                    if not built and args.model_summary:
+                        dsan.summary(print_fn=result_writer.write)
+                        built = True
+
                     step_cnt += 1
                     tf_summary_scalar(summary_writer, "total_loss", total_loss, step_cnt)
 
@@ -309,7 +314,7 @@ class TrainModel:
                         tf_summary_scalar(
                             summary_writer, "rmse_train_{}".format(data_name[i]), rmse_train[i].result(), epoch + 1)
                     template = 'Epoch {}{}\n'.format(epoch + 1, template)
-                    write_result(result_output_path, template)
+                    result_writer.write(template)
 
                 eval_rmse = 0.0
                 for i in range(pred_type):
@@ -336,11 +341,11 @@ class TrainModel:
                         if not test_dataset:
                             test_dataset = self.dataset_generator.build_dataset(
                                 'test', args.load_saved_data, strategy, args.st_revert, args.no_save)
-                        write_result(result_output_path, "Always Test:")
+                        result_writer.write("Always Test:")
                         evaluate(test_dataset, epoch)
 
                 ckpt_save_path = ckpt_manager.save()
-                ckpt_record = {'epoch': epoch + 1, 'best_epoch': es_helper.get_bestepoch(),
+                ckpt_record = {'built': built, 'epoch': epoch + 1, 'best_epoch': es_helper.get_bestepoch(),
                                'check_flag': check_flag, 'es_flag': es_flag, 'step_cnt': step_cnt}
                 ckpt_record = json.dumps(ckpt_record, indent=4)
                 with codecs.open(checkpoint_path + '/ckpt_record.json', 'w', 'utf-8') as outfile:
@@ -354,7 +359,7 @@ class TrainModel:
                 if test_model:
                     es_flag = True
 
-            write_result(result_output_path, "Start testing (filtering out trivial grids):")
+            result_writer.write("Start testing (filtering out trivial grids):")
             test_dataset = self.dataset_generator.build_dataset(
                 'test', args.load_saved_data, strategy, args.st_revert, args.no_save)
             evaluate(test_dataset, epoch, final_test=True)

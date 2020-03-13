@@ -4,13 +4,13 @@ import argparse
 import os
 import shutil
 import numpy as np
-from utils.tools import write_result
+from utils.tools import ResultWriter
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike or ctm')
 parser.add_argument('--gpu_ids', default='0, 1, 2, 3', help='indexes of gpus to use')
 parser.add_argument('--memory_growth', default=False)
-parser.add_argument('--index', default='l_half_g_none', help='indexes of model to be trained')
+parser.add_argument('--index', default='lg_none', help='indexes of model to be trained')
 parser.add_argument('--test_name', default=None)
 parser.add_argument('--hyp', default=None)
 parser.add_argument('--run_time', default=3)
@@ -42,6 +42,7 @@ parser.add_argument('--verbose_train', default=1)
 parser.add_argument('--weights', default=weights)
 parser.add_argument('--es_patience', default=10)
 parser.add_argument('--es_threshold', default=0.01)
+parser.add_argument('--model_summary', default=True)
 
 """ Data hyperparameters """
 parser.add_argument('--n_w', default=1, help='num of previous weeks to consider')
@@ -58,18 +59,13 @@ parser.add_argument('--st_revert', default=False)
 
 args = parser.parse_args()
 
-
-def write_args(args, m_ind):
-    result_output_path = "results/dsan/{}.txt".format(m_ind)
-    write_result(result_output_path, str(args))
-
 def remove_oldfiles(model_index):
     try:
-        shutil.rmtree('./checkpoints/dsan/{}'.format(model_index), ignore_errors=True)
+        shutil.rmtree('./checkpoints/{}'.format(model_index), ignore_errors=True)
     except:
         pass
     try:
-        os.remove('./results/dsan/{}.txt'.format(model_index))
+        os.remove('./results/{}.txt'.format(model_index))
     except:
         pass
     try:
@@ -98,8 +94,8 @@ if gpus and args.memory_growth:
     except RuntimeError as e:
         print(e)
 
-if not os.path.exists('./results/dsan'):
-    os.makedirs('./results/dsan')
+if not os.path.exists('./results'):
+    os.makedirs('./results')
 
 if __name__ == "__main__":
     if args.test_name:
@@ -108,13 +104,14 @@ if __name__ == "__main__":
                 model_index = args.dataset + '_{}_{}_{}_{}'.format(
                     'test' if args.test_model else args.index, args.test_name, this_arg, cnt + 1)
                 print('Model index: {}'.format(model_index))
+                result_writer = ResultWriter("results/{}.txt".format(model_index))
 
                 exec("%s = %d" % ('args.{}'.format(args.test_name), this_arg))
 
                 if args.remove_old_files:
                     remove_oldfiles(model_index)
 
-                write_args(args, model_index)
+                result_writer.write(str(args))
 
                 model_trainer = TrainModel(model_index, args)
                 print("\nStrat training DSAN...\n")
@@ -127,11 +124,12 @@ if __name__ == "__main__":
         for cnt in range(1 if args.test_model else args.run_time):
             model_index = args.dataset + '_{}_{}'.format('test' if args.test_model else args.index, cnt + 1)
             print('Model index: {}'.format(model_index))
+            result_writer = ResultWriter("results/{}.txt".format(model_index))
 
             if args.remove_old_files:
                 remove_oldfiles(model_index)
 
-            write_args(args, model_index)
+            result_writer.write(str(args))
 
             model_trainer = TrainModel(model_index, args)
             print("\nStrat training DSAN...\n")

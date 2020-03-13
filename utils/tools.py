@@ -120,11 +120,15 @@ class DatasetGenerator:
         return strategy.experimental_distribute_dataset(dataset_out) if strategy else dataset_out
 
 
-def write_result(path, str, print_str=True):
-    if print_str:
-        print(str)
-    with open(path, 'a+') as file:
-        file.write(str + '\n')
+class ResultWriter:
+    def __init__(self, path):
+        self.path = path
+
+    def write(self, str, print_str=True):
+        if print_str:
+            print(str)
+        with open(self.path, 'a+') as file:
+            file.write(str + '\n')
 
 
 def create_look_ahead_mask(size):
