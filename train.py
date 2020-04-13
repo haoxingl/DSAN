@@ -241,7 +241,7 @@ class TrainModel:
             step_cnt = 0
             last_epoch = 0
 
-            checkpoint_path = "./checkpoints/{}".format(self.model_index)
+            checkpoint_path = "checkpoints/{}".format(self.model_index)
 
             ckpt = tf.train.Checkpoint(DSAN=dsan, optimizer=optimizer)
 

@@ -1,9 +1,9 @@
 data_parameters = {
     'taxi':
         {
-            'data_train': "./data/NYTaxi/taxi_train.npz",
-            'data_val': "./data/NYTaxi/taxi_val.npz",
-            'data_test': "./data/NYTaxi/taxi_test.npz",
+            'data_train': "data/NYTaxi/taxi_train.npz",
+            'data_val': "data/NYTaxi/taxi_val.npz",
+            'data_test': "data/NYTaxi/taxi_test.npz",
             'data_type': 4,
             'data_name': ['inflow', 'outflow', 'in_transition', 'out_transition'],
             'pred_type': 2,
@@ -17,9 +17,9 @@ data_parameters = {
 
     'bike':
         {
-            'data_train': "./data/NYBike/bike_train.npz",
-            'data_val': "./data/NYBike/bike_val.npz",
-            'data_test': "./data/NYBike/bike_test.npz",
+            'data_train': "data/NYBike/bike_train.npz",
+            'data_val': "data/NYBike/bike_val.npz",
+            'data_test': "data/NYBike/bike_test.npz",
             'data_type': 4,
             'data_name': ['inflow', 'outflow', 'in_transition', 'out_transition'],
             'pred_type': 2,
@@ -33,9 +33,9 @@ data_parameters = {
 
     'ctm':
         {
-            'data_train': "./data/ctm/ctm_train.npz",
-            'data_val': "./data/ctm/ctm_val.npz",
-            'data_test': "./data/ctm/ctm_test.npz",
+            'data_train': "data/ctm/ctm_train.npz",
+            'data_val': "data/ctm/ctm_val.npz",
+            'data_test': "data/ctm/ctm_test.npz",
             'data_type': 2,
             'data_name': ['duration', 'request'],
             'pred_type': 2,
