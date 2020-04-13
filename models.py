@@ -12,7 +12,7 @@ def gelu(x):
 
 get_custom_objects().update({'gelu': layers.Activation(gelu)})
 
-act = 'relu'
+act = 'gelu'
 
 
 def get_angles(pos, i, d_model):
@@ -190,14 +190,13 @@ class DecoderLayer(layers.Layer):
         out1 = self.layernorm1(attn1 + x)
 
         if self.revert_q:
-            out1 = tf.transpose(out1, perm=[0, 2, 1, 3])
-
-        attn2, attn_weights_block2 = self.mha2(kv, kv, out1, padding_mask)
+            out1_r = tf.transpose(out1, perm=[0, 2, 1, 3])
+            attn2, attn_weights_block2 = self.mha2(kv, kv, out1_r, padding_mask)
+            attn2 = tf.transpose(attn2, perm=[0, 2, 1, 3])
+        else:
+            attn2, attn_weights_block2 = self.mha2(kv, kv, out1, padding_mask)
         attn2 = self.dropout2(attn2, training=training)
         out2 = self.layernorm2(attn2 + out1)
-
-        if self.revert_q:
-            out2 = tf.transpose(out2, perm=[0, 2, 1, 3])
 
         ffn_output = self.ffn(out2)
         ffn_output = self.dropout3(ffn_output, training=training)
@@ -258,6 +257,7 @@ class DAE(layers.Layer):
             x_g = self.enc_g[i](x_g, training, padding_mask_g)
 
         for i in range(self.n_layer):
+            # x_g = self.enc_g[i](x_g, training, padding_mask_g)
             x, block1, block2 = self.enc_l[i](x, x_g, training, padding_mask, padding_mask_g)
             attention_weights['dae_layer{}_block1'.format(i + 1)] = block1
             attention_weights['dae_layer{}_block2'.format(i + 1)] = block2
@@ -303,6 +303,12 @@ class SAD(layers.Layer):
         x_s = tf.transpose(x_s, perm=[0, 2, 1, 3])
 
         for i in range(self.n_layer):
+            # x_s, block1, block2 = self.dec_s[i](x_s, dae_output, training, look_ahead_mask, None)
+            # attention_weights['sad_s_layer{}_block1'.format(i + 1)] = block1
+            # attention_weights['sad_s_layer{}_block2'.format(i + 1)] = block2
+            #
+            # x_s_r = tf.transpose(x_s, perm=[0, 2, 1, 3])
+
             x_t, block1, block2 = self.dec_t[i](x_t, x_s, training, look_ahead_mask, None)
             attention_weights['decoder_t_layer{}_block1'.format(i + 1)] = block1
             attention_weights['decoder_t_layer{}_block2'.format(i + 1)] = block2

@@ -175,8 +175,8 @@ class TrainModel:
 
             @tf.function
             def distributed_train_step(dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y):
-                per_replica_losses = strategy.experimental_run_v2 \
-                    (train_step, args=(dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y,))
+                per_replica_losses = strategy.run(train_step, args=(
+                    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y,))
 
                 return strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None)
 
@@ -206,7 +206,7 @@ class TrainModel:
 
             @tf.function
             def distributed_test_step(dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y, final_test):
-                return strategy.experimental_run_v2(test_step, args=(
+                return strategy.run(test_step, args=(
                     dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y, final_test,))
 
             def evaluate(eval_dataset, epoch, verbose=1, final_test=False):

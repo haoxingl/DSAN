@@ -8,12 +8,12 @@ from utils.tools import ResultWriter
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike or ctm')
-parser.add_argument('--gpu_ids', default='0, 1, 2, 3', help='indexes of gpus to use')
+parser.add_argument('--gpu_ids', default=None, help='indexes of gpus to use')
 parser.add_argument('--memory_growth', default=False)
-parser.add_argument('--index', default='lg_none', help='indexes of model to be trained')
+parser.add_argument('--index', default='1', help='indexes of model to be trained')
 parser.add_argument('--test_name', default=None)
-parser.add_argument('--hyp', default=None)
-parser.add_argument('--run_time', default=3)
+parser.add_argument('--hyp', default=[None])
+parser.add_argument('--run_time', default=5)
 parser.add_argument('--remove_old_files', default=True)
 parser.add_argument('--load_saved_data', default=False)
 parser.add_argument('--no_save', default=False)
@@ -22,7 +22,7 @@ parser.add_argument('--mixed_precision', default=False)
 parser.add_argument('--always_test', default=None)
 
 """ Model hyperparameters """
-d_model = 64
+d_model = 256
 parser.add_argument('--n_layer', default=3, help='num of self-attention layers')
 parser.add_argument('--d_model', default=d_model, help='model dimension')
 parser.add_argument('--dff', default=d_model * 4, help='dimension of feed-forward networks')
@@ -36,7 +36,7 @@ weights_t = np.array([1 for _ in range(12)], dtype=np.float32)[:, np.newaxis]
 weights_f = np.array([1 for _ in range(2)], dtype=np.float32)[np.newaxis, :]
 weights = None
 parser.add_argument('--MAX_EPOCH', default=250)
-parser.add_argument('--BATCH_SIZE', default=128)
+parser.add_argument('--BATCH_SIZE', default=64)
 parser.add_argument('--warmup_steps', default=4000)
 parser.add_argument('--verbose_train', default=1)
 parser.add_argument('--weights', default=weights)
@@ -75,8 +75,9 @@ def remove_oldfiles(model_index):
 
 if args.mixed_precision:
     os.environ['TF_ENABLE_AUTO_MIXED_PRECISION'] = '1'
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_ids
+if args.gpu_ids:
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_ids
 
 assert args.dataset in ['taxi', 'bike', 'ctm']
 print("Dataset chosen: {}".format(args.dataset))
@@ -120,6 +121,9 @@ if __name__ == "__main__":
                 args.load_saved_data = True
                 K.clear_session()
 
+                if args.test_model:
+                    remove_oldfiles(model_index)
+
     else:
         for cnt in range(1 if args.test_model else args.run_time):
             model_index = args.dataset + '_{}_{}'.format('test' if args.test_model else args.index, cnt + 1)
@@ -137,3 +141,6 @@ if __name__ == "__main__":
 
             args.load_saved_data = True
             K.clear_session()
+
+            if args.test_model:
+                remove_oldfiles(model_index)
