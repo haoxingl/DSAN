@@ -83,9 +83,9 @@ class TrainModel:
 
         with strategy.scope():
 
-            def tf_summary_scalar(summary_writer, name, value, step):
-                with summary_writer.as_default():
-                    tf.summary.scalar(name, value, step=step)
+            # def tf_summary_scalar(summary_writer, name, value, step):
+            #     with summary_writer.as_default():
+            #         tf.summary.scalar(name, value, step=step)
 
             def print_verbose(epoch, final_test):
                 if final_test:
@@ -236,8 +236,8 @@ class TrainModel:
             es_flag = False
             check_flag = False
             es_helper = EarlystopHelper(self.es_patiences, self.es_threshold)
-            summary_writer = tf.summary.create_file_writer(
-                os.environ['HOME'] + '/tensorboard/dsan/{}'.format(self.model_index))
+            # summary_writer = tf.summary.create_file_writer(
+            #     os.environ['HOME'] + '/tensorboard/dsan/{}'.format(self.model_index))
             step_cnt = 0
             last_epoch = 0
 
@@ -300,7 +300,7 @@ class TrainModel:
                         built = True
 
                     step_cnt += 1
-                    tf_summary_scalar(summary_writer, "total_loss", total_loss, step_cnt)
+                    # tf_summary_scalar(summary_writer, "total_loss", total_loss, step_cnt)
 
                     if (batch + 1) % 100 == 0 and args.verbose_train:
                         template = 'Epoch {} Batch {} RMSE:'.format(epoch + 1, batch + 1)
@@ -311,8 +311,8 @@ class TrainModel:
                     template = ''
                     for i in range(pred_type):
                         template += ' {} {:.6f}'.format(data_name[i], rmse_train[i].result())
-                        tf_summary_scalar(
-                            summary_writer, "rmse_train_{}".format(data_name[i]), rmse_train[i].result(), epoch + 1)
+                        # tf_summary_scalar(
+                        #     summary_writer, "rmse_train_{}".format(data_name[i]), rmse_train[i].result(), epoch + 1)
                     template = 'Epoch {}{}\n'.format(epoch + 1, template)
                     result_writer.write(template)
 
@@ -334,9 +334,9 @@ class TrainModel:
                                 es_rmse[i] += float(rmse_test[j][i].result().numpy() * weights[j, i])
                             else:
                                 es_rmse[i] += float(rmse_test[j][i].result().numpy())
-                        tf_summary_scalar(summary_writer, "rmse_test_{}".format(data_name[i]), es_rmse[i] / n_pred, epoch + 1)
+                        # tf_summary_scalar(summary_writer, "rmse_test_{}".format(data_name[i]), es_rmse[i] / n_pred, epoch + 1)
                     es_flag = es_helper.check(es_rmse[0] + es_rmse[1], epoch)
-                    tf_summary_scalar(summary_writer, "best_epoch", es_helper.get_bestepoch(), epoch + 1)
+                    # tf_summary_scalar(summary_writer, "best_epoch", es_helper.get_bestepoch(), epoch + 1)
                     if args.always_test and (epoch + 1) % args.always_test == 0:
                         if not test_dataset:
                             test_dataset = self.dataset_generator.build_dataset(
@@ -353,7 +353,7 @@ class TrainModel:
                 es_helper.save_ckpt(checkpoint_path)
                 print('Save checkpoint for epoch {} at {}\n'.format(epoch + 1, ckpt_save_path))
 
-                tf_summary_scalar(summary_writer, "epoch_time", time.time() - start, epoch + 1)
+                # tf_summary_scalar(summary_writer, "epoch_time", time.time() - start, epoch + 1)
                 print('Time taken for 1 epoch: {} secs\n'.format(time.time() - start))
 
                 if test_model:
@@ -363,5 +363,5 @@ class TrainModel:
             test_dataset = self.dataset_generator.build_dataset(
                 'test', args.load_saved_data, strategy, args.st_revert, args.no_save)
             evaluate(test_dataset, epoch, final_test=True)
-            for i in range(pred_type):
-                tf_summary_scalar(summary_writer, "final_rmse_{}".format(data_name[i]), rmse_test[0][i].result(), 1)
+            # for i in range(pred_type):
+            #     tf_summary_scalar(summary_writer, "final_rmse_{}".format(data_name[i]), rmse_test[0][i].result(), 1)
