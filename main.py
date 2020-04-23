@@ -8,9 +8,9 @@ from utils.tools import ResultWriter
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike or ctm')
-parser.add_argument('--gpu_ids', default=None, help='indexes of gpus to use')
-parser.add_argument('--memory_growth', default=False)
-parser.add_argument('--index', default='1', help='indexes of model to be trained')
+parser.add_argument('--gpu_ids', default='8, 9, 10, 11', help='indexes of gpus to use')
+parser.add_argument('--memory_growth', default=True)
+parser.add_argument('--index', default='relu_128', help='indexes of model to be trained')
 parser.add_argument('--test_name', default=None)
 parser.add_argument('--hyp', default=[None])
 parser.add_argument('--run_time', default=5)
@@ -22,7 +22,7 @@ parser.add_argument('--mixed_precision', default=False)
 parser.add_argument('--always_test', default=None)
 
 """ Model hyperparameters """
-d_model = 256
+d_model = 128
 parser.add_argument('--n_layer', default=3, help='num of self-attention layers')
 parser.add_argument('--d_model', default=d_model, help='model dimension')
 parser.add_argument('--dff', default=d_model * 4, help='dimension of feed-forward networks')
@@ -36,7 +36,7 @@ weights_t = np.array([1 for _ in range(12)], dtype=np.float32)[:, np.newaxis]
 weights_f = np.array([1 for _ in range(2)], dtype=np.float32)[np.newaxis, :]
 weights = None
 parser.add_argument('--MAX_EPOCH', default=250)
-parser.add_argument('--BATCH_SIZE', default=64)
+parser.add_argument('--BATCH_SIZE', default=256)
 parser.add_argument('--warmup_steps', default=4000)
 parser.add_argument('--verbose_train', default=1)
 parser.add_argument('--weights', default=weights)
@@ -61,15 +61,15 @@ args = parser.parse_args()
 
 def remove_oldfiles(model_index):
     try:
-        shutil.rmtree('./checkpoints/{}'.format(model_index), ignore_errors=True)
+        shutil.rmtree('checkpoints/{}'.format(model_index), ignore_errors=True)
     except:
         pass
     try:
-        os.remove('./results/{}.txt'.format(model_index))
+        os.remove('results/{}.txt'.format(model_index))
     except:
         pass
     try:
-        shutil.rmtree(os.environ['HOME'] + '/tensorboard/dsan/{}'.format(model_index), ignore_errors=True)
+        shutil.rmtree('/tensorboard/dsan/{}'.format(model_index), ignore_errors=True)
     except:
         pass
 
@@ -95,8 +95,8 @@ if gpus and args.memory_growth:
     except RuntimeError as e:
         print(e)
 
-if not os.path.exists('./results'):
-    os.makedirs('./results')
+if not os.path.exists('results'):
+    os.makedirs('results')
 
 if __name__ == "__main__":
     if args.test_name:
