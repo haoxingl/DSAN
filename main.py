@@ -8,12 +8,12 @@ from utils.tools import ResultWriter
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike or ctm')
-parser.add_argument('--gpu_ids', default=None, help='indexes of gpus to use')
+parser.add_argument('--gpu_ids', default='0, 1, 2, 3', help='indexes of gpus to use')
 parser.add_argument('--memory_growth', default=False)
-parser.add_argument('--index', default='1', help='indexes of model to be trained')
+parser.add_argument('--index', default='relu_5', help='indexes of model to be trained')
 parser.add_argument('--test_name', default=None)
 parser.add_argument('--hyp', default=[None])
-parser.add_argument('--run_time', default=5)
+parser.add_argument('--run_time', default=10)
 parser.add_argument('--remove_old_files', default=True)
 parser.add_argument('--load_saved_data', default=False)
 parser.add_argument('--no_save', default=False)
@@ -22,7 +22,7 @@ parser.add_argument('--mixed_precision', default=False)
 parser.add_argument('--always_test', default=None)
 
 """ Model hyperparameters """
-d_model = 256
+d_model = 64
 parser.add_argument('--n_layer', default=3, help='num of self-attention layers')
 parser.add_argument('--d_model', default=d_model, help='model dimension')
 parser.add_argument('--dff', default=d_model * 4, help='dimension of feed-forward networks')
@@ -52,7 +52,7 @@ parser.add_argument('--n_p', default=1, help='num of time in today to consider')
 parser.add_argument('--n_before', default=0, help='num of time before predicted time to consider')
 parser.add_argument('--n_pred', default=12, help='future time to predict')
 parser.add_argument('--l_half', default=3)
-parser.add_argument('--l_half_g', default=None)
+parser.add_argument('--l_half_g', default=5)
 parser.add_argument('--pre_shuffle', default=True)
 parser.add_argument('--same_padding', default=False)
 parser.add_argument('--st_revert', default=False)

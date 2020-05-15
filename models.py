@@ -12,7 +12,7 @@ def gelu(x):
 
 get_custom_objects().update({'gelu': layers.Activation(gelu)})
 
-act = 'gelu'
+act = 'relu'
 
 
 def get_angles(pos, i, d_model):
