@@ -10,10 +10,10 @@ parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike or ctm')
 parser.add_argument('--gpu_ids', default='8, 9, 10, 11', help='indexes of gpus to use')
 parser.add_argument('--memory_growth', default=True)
-parser.add_argument('--index', default='relu_128', help='indexes of model to be trained')
+parser.add_argument('--index', default='relu_64', help='indexes of model to be trained')
 parser.add_argument('--test_name', default=None)
 parser.add_argument('--hyp', default=[None])
-parser.add_argument('--run_time', default=5)
+parser.add_argument('--run_time', default=10)
 parser.add_argument('--remove_old_files', default=True)
 parser.add_argument('--load_saved_data', default=False)
 parser.add_argument('--no_save', default=False)
@@ -22,7 +22,7 @@ parser.add_argument('--mixed_precision', default=False)
 parser.add_argument('--always_test', default=None)
 
 """ Model hyperparameters """
-d_model = 128
+d_model = 64
 parser.add_argument('--n_layer', default=3, help='num of self-attention layers')
 parser.add_argument('--d_model', default=d_model, help='model dimension')
 parser.add_argument('--dff', default=d_model * 4, help='dimension of feed-forward networks')
