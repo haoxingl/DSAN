@@ -66,6 +66,8 @@ class TrainModel:
         self.test_threshold = [param['test_threshold'][i] / self.data_max[i] for i in range(param['pred_type'])]
 
     def train(self):
+        real_start = time.time()
+
         strategy = self.strategy
         args = self.args
         param = self.param
@@ -241,7 +243,7 @@ class TrainModel:
             step_cnt = 0
             last_epoch = 0
 
-            checkpoint_path = "./checkpoints/{}".format(self.model_index)
+            checkpoint_path = "checkpoints/{}".format(self.model_index)
 
             ckpt = tf.train.Checkpoint(DSAN=dsan, optimizer=optimizer)
 
@@ -354,7 +356,7 @@ class TrainModel:
                 print('Save checkpoint for epoch {} at {}\n'.format(epoch + 1, ckpt_save_path))
 
                 tf_summary_scalar(summary_writer, "epoch_time", time.time() - start, epoch + 1)
-                print('Time taken for 1 epoch: {} secs\n'.format(time.time() - start))
+                result_writer.write('Time taken for 1 epoch: {} secs\n'.format(time.time() - start))
 
                 if test_model:
                     es_flag = True
@@ -363,5 +365,10 @@ class TrainModel:
             test_dataset = self.dataset_generator.build_dataset(
                 'test', args.load_saved_data, strategy, args.st_revert, args.no_save)
             evaluate(test_dataset, epoch, final_test=True)
+
+            hours, seconds = divmod(time.time() - real_start, 3600)
+            minutes, seconds = divmod(seconds, 60)
+            total_time = "{:02.0f}:{:02.0f}:{:02.0f}".format(hours, minutes, seconds)
+            result_writer.write('Total time taken: {}\n'.format(total_time))
             for i in range(pred_type):
                 tf_summary_scalar(summary_writer, "final_rmse_{}".format(data_name[i]), rmse_test[0][i].result(), 1)
