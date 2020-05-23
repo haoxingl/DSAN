@@ -43,7 +43,6 @@ class Convs(layers.Layer):
 
         self.convs = [[layers.Conv2D(n_filter, (3, 3), activation=act, padding='same')
                        for _ in range(l_hist)] for _ in range(n_layer)]
-        # self.batchnorms = [[layers.BatchNormalization(epsilon=1e-6) for _ in range(l_hist)] for _ in range(n_layer)]
         self.dropouts = [[layers.Dropout(r_d) for _ in range(l_hist)] for _ in range(n_layer)]
 
     def call(self, inps, training):
@@ -214,8 +213,6 @@ class DAE(layers.Layer):
 
         self.convs = Convs(conv_layer, conv_filter, l_hist, r_d)
         self.convs_g = Convs(conv_layer, conv_filter, l_hist, r_d)
-        # self.convs = layers.Dense(d_model, activation=act)
-        # self.convs_g = layers.Dense(d_model, activation=act)
 
         self.ex_encoder = ex_encoding(d_model, dff)
         self.ex_encoder_g = ex_encoding(d_model, dff)
@@ -238,8 +235,6 @@ class DAE(layers.Layer):
 
         x = self.convs(x, training)
         x_g = self.convs_g(x_g, training)
-        # x = self.convs(x)
-        # x_g = self.convs_g(x_g)
 
         x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
         x_g *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
@@ -257,7 +252,6 @@ class DAE(layers.Layer):
             x_g = self.enc_g[i](x_g, training, padding_mask_g)
 
         for i in range(self.n_layer):
-            # x_g = self.enc_g[i](x_g, training, padding_mask_g)
             x, block1, block2 = self.enc_l[i](x, x_g, training, padding_mask, padding_mask_g)
             attention_weights['dae_layer{}_block1'.format(i + 1)] = block1
             attention_weights['dae_layer{}_block2'.format(i + 1)] = block2
@@ -277,7 +271,6 @@ class SAD(layers.Layer):
         self.dropout = layers.Dropout(r_d)
 
         self.li_conv = Sequential([layers.Dense(d_model, activation=act) for _ in range(conv_layer)])
-        # self.li_conv = layers.Dense(d_model, activation=act)
 
         self.dec_s = [DecoderLayer(d_model, n_head, dff, r_d) for _ in range(n_layer)]
         self.dec_t = [DecoderLayer(d_model, n_head, dff, r_d, revert_q=True) for _ in range(n_layer)]
@@ -303,12 +296,6 @@ class SAD(layers.Layer):
         x_s = tf.transpose(x_s, perm=[0, 2, 1, 3])
 
         for i in range(self.n_layer):
-            # x_s, block1, block2 = self.dec_s[i](x_s, dae_output, training, look_ahead_mask, None)
-            # attention_weights['sad_s_layer{}_block1'.format(i + 1)] = block1
-            # attention_weights['sad_s_layer{}_block2'.format(i + 1)] = block2
-            #
-            # x_s_r = tf.transpose(x_s, perm=[0, 2, 1, 3])
-
             x_t, block1, block2 = self.dec_t[i](x_t, x_s, training, look_ahead_mask, None)
             attention_weights['decoder_t_layer{}_block1'.format(i + 1)] = block1
             attention_weights['decoder_t_layer{}_block2'.format(i + 1)] = block2
