@@ -7,13 +7,13 @@ import numpy as np
 from utils.tools import ResultWriter
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
-parser.add_argument('--dataset', default='taxi', help='taxi or bike or ctm')
+parser.add_argument('--dataset', default='ctm', help='taxi or bike or ctm')
 parser.add_argument('--gpu_ids', default='4, 5, 6, 7', help='indexes of gpus to use')
 parser.add_argument('--memory_growth', default=False)
-parser.add_argument('--index', default='SOTA_4gpus', help='indexes of model to be trained')
+parser.add_argument('--index', default='SOTA_4GPUs', help='indexes of model to be trained')
 parser.add_argument('--test_name', default=None)
 parser.add_argument('--hyp', default=[None])
-parser.add_argument('--run_time', default=10)
+parser.add_argument('--run_time', default=100)
 parser.add_argument('--remove_old_files', default=True)
 parser.add_argument('--load_saved_data', default=False)
 parser.add_argument('--no_save', default=False)

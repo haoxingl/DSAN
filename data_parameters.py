@@ -39,10 +39,10 @@ data_parameters = {
             'data_type': 2,
             'data_name': ['duration', 'request'],
             'pred_type': 2,
-            'data_max': [789086, 2368],
+            'data_max': [13151, 2368],
             'len_int': 900,
             'n_int': 96,
-            'test_threshold': [1000, 10],
+            'test_threshold': [60, 10],
             'len_r': 20,
             'len_c': 21
         }
