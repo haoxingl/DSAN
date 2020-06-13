@@ -7,7 +7,7 @@ import numpy as np
 from utils.tools import ResultWriter
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
-parser.add_argument('--dataset', default='ctm', help='taxi or bike or ctm')
+parser.add_argument('--dataset', default='taxi', help='taxi or bike or ctm')
 parser.add_argument('--gpu_ids', default='4, 5, 6, 7', help='indexes of gpus to use')
 parser.add_argument('--memory_growth', default=False)
 parser.add_argument('--index', default='SOTA_4GPUs', help='indexes of model to be trained')
