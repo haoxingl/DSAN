@@ -8,6 +8,8 @@ tensorboard/*
 data/*
 backup/*
 stsan_old/*
+main_4gpus.py
+main_single.py
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

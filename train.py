@@ -356,7 +356,7 @@ class TrainModel:
                 print('Save checkpoint for epoch {} at {}\n'.format(epoch + 1, ckpt_save_path))
 
                 tf_summary_scalar(summary_writer, "epoch_time", time.time() - start, epoch + 1)
-                print('Time taken for 1 epoch: {} secs\n'.format(time.time() - start))
+                result_writer.write('Time taken for 1 epoch: {} secs\n'.format(time.time() - start))
 
                 if test_model:
                     es_flag = True
@@ -369,6 +369,6 @@ class TrainModel:
             hours, seconds = divmod(time.time() - real_start, 3600)
             minutes, seconds = divmod(seconds, 60)
             total_time = "{:02.0f}:{:02.0f}:{:02.0f}".format(hours, minutes, seconds)
-            print('Total time taken: {}\n'.format(total_time))
+            result_writer.write('Total time taken: {}\n'.format(total_time))
             for i in range(pred_type):
                 tf_summary_scalar(summary_writer, "final_rmse_{}".format(data_name[i]), rmse_test[0][i].result(), 1)
