@@ -86,7 +86,7 @@ from train import TrainModel
 import tensorflow as tf
 import tensorflow.keras.backend as K
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
+gpus = tf.config.list_physical_devices('GPU')
 
 if gpus and args.memory_growth:
     try:
