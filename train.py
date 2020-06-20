@@ -322,6 +322,13 @@ class TrainModel:
                 for i in range(pred_type):
                     eval_rmse += float(rmse_train[i].result().numpy())
 
+                if args.always_test and (epoch + 1) % args.always_test == 0:
+                    if not test_dataset:
+                        test_dataset = self.dataset_generator.build_dataset(
+                            'test', args.load_saved_data, strategy, args.st_revert, args.no_save)
+                    result_writer.write("Always Test:")
+                    evaluate(test_dataset, epoch)
+
                 if test_model or (not check_flag and es_helper.refresh_status(eval_rmse)):
                     check_flag = True
                     val_dataset = self.dataset_generator.build_dataset(
@@ -339,12 +346,6 @@ class TrainModel:
                         tf_summary_scalar(summary_writer, "rmse_test_{}".format(data_name[i]), es_rmse[i] / n_pred, epoch + 1)
                     es_flag = es_helper.check(es_rmse[0] + es_rmse[1], epoch)
                     tf_summary_scalar(summary_writer, "best_epoch", es_helper.get_bestepoch(), epoch + 1)
-                    if args.always_test and (epoch + 1) % args.always_test == 0:
-                        if not test_dataset:
-                            test_dataset = self.dataset_generator.build_dataset(
-                                'test', args.load_saved_data, strategy, args.st_revert, args.no_save)
-                        result_writer.write("Always Test:")
-                        evaluate(test_dataset, epoch)
 
                 ckpt_save_path = ckpt_manager.save()
                 ckpt_record = {'built': built, 'epoch': epoch + 1, 'best_epoch': es_helper.get_bestepoch(),
