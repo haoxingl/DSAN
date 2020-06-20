@@ -69,7 +69,7 @@ def remove_oldfiles(model_index):
     except:
         pass
     try:
-        shutil.rmtree('/tensorboard/dsan/{}'.format(model_index), ignore_errors=True)
+        shutil.rmtree('tensorboard/dsan/{}'.format(model_index), ignore_errors=True)
     except:
         pass
 
@@ -86,12 +86,12 @@ from train import TrainModel
 import tensorflow as tf
 import tensorflow.keras.backend as K
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
+gpus = tf.config.list_physical_devices('GPU')
 
 if gpus and args.memory_growth:
     try:
         for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
+            tf.config.set_memory_growth(gpu, True)
     except RuntimeError as e:
         print(e)
 
