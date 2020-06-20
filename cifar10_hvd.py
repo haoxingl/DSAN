@@ -50,6 +50,8 @@ for gpu in gpus:
 if gpus:
     tf.config.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
 
+print(hvd.local_rank())
+
 # (train_images, train_labels), (test_images, test_labels) = datasets.cifar10.load_data()
 num_train_samples = 50000
 
@@ -76,7 +78,7 @@ train_labels = np.reshape(y_train, (len(y_train), 1))
 x_train = x_train.transpose(0, 2, 3, 1)
 train_images = x_train / 255.0
 
-train_dataset = tf.data.Dataset.from_tensor_slices((train_images, train_labels)).batch(10000 // hvd.size())
+train_dataset = tf.data.Dataset.from_tensor_slices((train_images, train_labels)).batch(2048 // hvd.size())
 train_dataset = train_dataset.shuffle(num_train_samples)
 
 model = models.Sequential()
@@ -122,7 +124,7 @@ def training_step(images, labels, first_batch):
     return loss_value
 
 
-for i in range(1000):
+for i in range(10000):
     for batch, (images, labels) in enumerate(train_dataset):
         loss_value = training_step(images, labels, batch == 0)
 
