@@ -41,7 +41,7 @@ parser.add_argument('--warmup_steps', default=4000)
 parser.add_argument('--verbose_train', default=1)
 parser.add_argument('--weights', default=weights)
 parser.add_argument('--es_patience', default=10)
-parser.add_argument('--es_threshold', default=0.01)
+parser.add_argument('--es_threshold', default=0.001)
 parser.add_argument('--model_summary', default=True)
 
 """ Data hyperparameters """
