@@ -8,18 +8,18 @@ from utils.tools import ResultWriter
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike or ctm')
-parser.add_argument('--gpu_ids', default='0', help='indexes of gpus to use')
+parser.add_argument('--gpu_ids', default='1', help='indexes of gpus to use')
 parser.add_argument('--memory_growth', default=False)
-parser.add_argument('--index', default='SOTA_1GPUs', help='indexes of model to be trained')
+parser.add_argument('--index', default='SOTA_1GPUs_64000', help='indexes of model to be trained')
 parser.add_argument('--test_name', default=None)
 parser.add_argument('--hyp', default=[None])
 parser.add_argument('--run_time', default=1)
 parser.add_argument('--remove_old_files', default=True)
-parser.add_argument('--load_saved_data', default=False)
+parser.add_argument('--load_saved_data', default=True)
 parser.add_argument('--no_save', default=False)
 parser.add_argument('--test_model', default=None)
 parser.add_argument('--mixed_precision', default=False)
-parser.add_argument('--always_test', default=3)
+parser.add_argument('--always_test', default=1)
 
 """ Model hyperparameters """
 d_model = 64
@@ -37,7 +37,7 @@ weights_f = np.array([1 for _ in range(2)], dtype=np.float32)[np.newaxis, :]
 weights = None
 parser.add_argument('--MAX_EPOCH', default=250)
 parser.add_argument('--BATCH_SIZE', default=64)
-parser.add_argument('--warmup_steps', default=32000)
+parser.add_argument('--warmup_steps', default=64000)
 parser.add_argument('--verbose_train', default=1)
 parser.add_argument('--weights', default=weights)
 parser.add_argument('--es_patience', default=10)
