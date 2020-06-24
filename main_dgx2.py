@@ -9,7 +9,7 @@ from utils.tools import ResultWriter
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike or ctm')
 parser.add_argument('--gpu_ids', default='0', help='indexes of gpus to use')
-parser.add_argument('--memory_growth', default=True)
+parser.add_argument('--memory_growth', default=False)
 parser.add_argument('--index', default='SOTA_1GPUs', help='indexes of model to be trained')
 parser.add_argument('--test_name', default=None)
 parser.add_argument('--hyp', default=[None])
@@ -86,12 +86,14 @@ from train import TrainModel
 import tensorflow as tf
 import tensorflow.keras.backend as K
 
+print(tf.__version__)
+
 gpus = tf.config.list_physical_devices('GPU')
 
 if gpus and args.memory_growth:
     try:
         for gpu in gpus:
-            tf.config.set_memory_growth(gpu, True)
+            tf.config.experimental.set_memory_growth(gpu, True)
     except RuntimeError as e:
         print(e)
 
