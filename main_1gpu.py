@@ -8,18 +8,18 @@ from utils.tools import ResultWriter
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike or ctm')
-parser.add_argument('--gpu_ids', default='4', help='indexes of gpus to use')
+parser.add_argument('--gpu_ids', default='5', help='indexes of gpus to use')
 parser.add_argument('--memory_growth', default=False)
-parser.add_argument('--index', default='SOTA_1GPU_64_64000_es_epoch_40', help='indexes of model to be trained')
-parser.add_argument('--test_name', default=None)
-parser.add_argument('--hyp', default=[None])
+parser.add_argument('--index', default='1GPU_64', help='indexes of model to be trained')
+parser.add_argument('--test_name', default='warmup_steps')
+parser.add_argument('--hyp', default=[128000, 64000, 32000, 16000, 8000])
 parser.add_argument('--run_time', default=3)
 parser.add_argument('--remove_old_files', default=True)
-parser.add_argument('--load_saved_data', default=False)
+parser.add_argument('--load_saved_data', default=True)
 parser.add_argument('--no_save', default=False)
 parser.add_argument('--test_model', default=None)
 parser.add_argument('--mixed_precision', default=False)
-parser.add_argument('--always_test', default=None)
+parser.add_argument('--always_test', default=5)
 
 """ Model hyperparameters """
 d_model = 64
@@ -42,7 +42,7 @@ parser.add_argument('--verbose_train', default=1)
 parser.add_argument('--weights', default=weights)
 parser.add_argument('--es_patience', default=5)
 parser.add_argument('--es_threshold', default=0.01)
-parser.add_argument('--es_epoch', default=40)
+parser.add_argument('--es_epoch', default=120)
 parser.add_argument('--model_summary', default=True)
 
 """ Data hyperparameters """
