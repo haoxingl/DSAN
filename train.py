@@ -324,12 +324,12 @@ class TrainModel:
                 for i in range(pred_type):
                     eval_rmse += float(rmse_train[i].result().numpy())
 
-                if not check_flag and test_model:
+                if test_model and not check_flag:
                     check_flag = True
-                elif not check_flag and args.es_epoch:
+                elif args.es_epoch and not check_flag:
                     check_flag = epoch + 1 > args.es_epoch
                     es_helper.set_cflag()
-                elif not check_flag and es_helper.refresh_status(eval_rmse):
+                elif not args.es_epoch and not check_flag and es_helper.refresh_status(eval_rmse):
                     check_flag = True
 
                 if check_flag and not val_dataset:
