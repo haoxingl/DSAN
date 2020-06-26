@@ -36,6 +36,9 @@ class EarlystopHelper:
                     self.last_rmse = eval_rmse
                     return False
 
+    def set_cflag(self, value=True):
+        self.check_flag = value
+
     def check(self, test_rmse, epoch):
 
         if self.check_flag and not self.stop_flag:

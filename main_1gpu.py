@@ -42,6 +42,7 @@ parser.add_argument('--verbose_train', default=1)
 parser.add_argument('--weights', default=weights)
 parser.add_argument('--es_patience', default=5)
 parser.add_argument('--es_threshold', default=0.00001)
+parser.add_argument('--es_epoch', default=120)
 parser.add_argument('--model_summary', default=True)
 
 """ Data hyperparameters """

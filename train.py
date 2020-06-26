@@ -81,6 +81,8 @@ class TrainModel:
 
         train_dataset = self.dataset_generator.build_dataset('train', args.load_saved_data,
                                                              strategy, args.st_revert, args.no_save)
+
+        val_dataset = None
         test_dataset = None
 
         with strategy.scope():
@@ -322,20 +324,20 @@ class TrainModel:
                 for i in range(pred_type):
                     eval_rmse += float(rmse_train[i].result().numpy())
 
-                if args.always_test and (epoch + 1) % args.always_test == 0:
-                    if not test_dataset:
-                        test_dataset = self.dataset_generator.build_dataset(
-                            'test', args.load_saved_data, strategy, args.st_revert, args.no_save)
-                    result_writer.write("Always Test:")
-                    evaluate(test_dataset, epoch)
-
-                if test_model or (not check_flag and es_helper.refresh_status(eval_rmse)):
+                if test_model and not check_flag:
                     check_flag = True
+                elif args.es_epoch and not check_flag:
+                    check_flag = epoch + 1 > args.es_epoch
+                    es_helper.set_cflag()
+                elif not args.es_epoch and not check_flag and es_helper.refresh_status(eval_rmse):
+                    check_flag = True
+
+                if check_flag and not val_dataset:
                     val_dataset = self.dataset_generator.build_dataset(
                         'val', args.load_saved_data, strategy, args.st_revert, args.no_save)
 
                 if check_flag:
-                    evaluate(val_dataset, epoch, final_test=False)
+                    evaluate(val_dataset, epoch)
                     es_rmse = [0.0 for _ in range(pred_type)]
                     for i in range(pred_type):
                         for j in range(n_pred):
@@ -346,6 +348,13 @@ class TrainModel:
                         tf_summary_scalar(summary_writer, "rmse_test_{}".format(data_name[i]), es_rmse[i] / n_pred, epoch + 1)
                     es_flag = es_helper.check(es_rmse[0] + es_rmse[1], epoch)
                     tf_summary_scalar(summary_writer, "best_epoch", es_helper.get_bestepoch(), epoch + 1)
+
+                if args.always_test and (epoch + 1) % args.always_test == 0:
+                    if not test_dataset:
+                        test_dataset = self.dataset_generator.build_dataset(
+                            'test', args.load_saved_data, strategy, args.st_revert, args.no_save)
+                    result_writer.write("Always Test:")
+                    evaluate(test_dataset, epoch)
 
                 ckpt_save_path = ckpt_manager.save()
                 ckpt_record = {'built': built, 'epoch': epoch + 1, 'best_epoch': es_helper.get_bestepoch(),
@@ -363,8 +372,9 @@ class TrainModel:
                     es_flag = True
 
             result_writer.write("Start testing (filtering out trivial grids):")
-            test_dataset = self.dataset_generator.build_dataset(
-                'test', args.load_saved_data, strategy, args.st_revert, args.no_save)
+            if not test_dataset:
+                test_dataset = self.dataset_generator.build_dataset(
+                    'test', args.load_saved_data, strategy, args.st_revert, args.no_save)
             evaluate(test_dataset, epoch, final_test=True)
 
             hours, seconds = divmod(time.time() - real_start, 3600)
