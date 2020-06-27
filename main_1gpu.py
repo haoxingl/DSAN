@@ -9,7 +9,7 @@ from utils.tools import ResultWriter
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike or ctm')
 parser.add_argument('--gpu_ids', default='0', help='indexes of gpus to use')
-parser.add_argument('--memory_growth', default=True)
+parser.add_argument('--memory_growth', default=False)
 parser.add_argument('--index', default='SOTA_1GPU', help='indexes of model to be trained')
 parser.add_argument('--test_name', default=None)
 parser.add_argument('--hyp', default=[None])
