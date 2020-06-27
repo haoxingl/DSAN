@@ -1,3 +1,17 @@
+"""Calculate the coordinate matrices for SPE.
+Since the matrices can be pre calculated, they are
+generated during Loading the input data.
+
+Args:
+  len_r: row length of DAE local block
+  len_c: column length of DAE local block
+  d_model: feature dimension
+  l_half: Only used when limiting the global input size
+
+Returns:
+  coordinate of every grid
+"""
+
 import numpy as np
 
 

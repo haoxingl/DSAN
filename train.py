@@ -158,12 +158,12 @@ class TrainModel:
 
             def train_step(dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y):
 
-                padding_mask_g, padding_mask, combined_mask = \
+                threshold_mask_g, threshold_mask, combined_mask = \
                     create_masks(dae_inp_g[..., :pred_type], dae_inp[..., :pred_type], sad_inp)
 
                 with tf.GradientTape() as tape:
                     predictions, _, _ = dsan(dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, True,
-                                             padding_mask, padding_mask_g, combined_mask)
+                                             threshold_mask, threshold_mask_g, combined_mask)
                     if type(weights) is np.ndarray:
                         loss = loss_function(y * weights, predictions * weights)
                     else:
@@ -188,11 +188,11 @@ class TrainModel:
                 targets = sad_inp[:, :1, :]
                 for i in range(n_pred):
                     tar_inp_ex = sad_inp_ex[:, :i + 1, :]
-                    padding_mask_g, padding_mask, combined_mask = \
+                    threshold_mask_g, threshold_mask, combined_mask = \
                         create_masks(dae_inp_g[..., :pred_type], dae_inp[..., :pred_type], targets)
 
                     predictions, _, _ = dsan(dae_inp_g, dae_inp, dae_inp_ex, targets, tar_inp_ex, cors, cors_g, False,
-                                             padding_mask, padding_mask_g, combined_mask)
+                                             threshold_mask, threshold_mask_g, combined_mask)
 
                     """ here we filter out all nodes where their real flows are less than 10 """
                     for j in range(pred_type):

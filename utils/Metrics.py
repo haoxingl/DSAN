@@ -1,3 +1,10 @@
+"""The metrics used for evaluation.
+
+  RMSE: root mean squared error
+  MAE: mean absolute error
+  MAPE: mean absolute percentage error
+"""
+
 import tensorflow as tf
 from tensorflow import math
 

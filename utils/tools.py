@@ -4,6 +4,7 @@ from utils.DataLoader import DataLoader as dl
 import tensorflow as tf
 
 
+"""Generate TF data sets"""
 class DatasetGenerator:
     def __init__(self, d_model=64, dataset='taxi', batch_size=64, n_w=1, n_d=3, n_wd_times=1, n_p=1, n_before=0,
                  n_pred=12, l_half=3, l_half_g=None, pre_shuffle=True, same_padding=False, test_model=False):
@@ -136,7 +137,7 @@ def create_look_ahead_mask(size):
     return mask
 
 
-def create_padding_mask(inp):
+def create_threshold_mask(inp):
     oup = tf.math.reduce_sum(inp, axis=-1)
     shape = tf.shape(oup)
     oup = tf.reshape(oup, [shape[0], shape[1], -1])
@@ -144,21 +145,21 @@ def create_padding_mask(inp):
     return mask
 
 
-def create_padding_mask_tar(inp):
+def create_threshold_mask_tar(inp):
     oup = tf.math.reduce_sum(inp, axis=-1)
     mask = tf.cast(tf.math.equal(oup, 0), tf.float32)
     return mask
 
 
 def create_masks(inp_g, inp_l, tar):
-    padding_mask_g = create_padding_mask(inp_g)[:, :, tf.newaxis, tf.newaxis, :]
-    padding_mask = create_padding_mask(inp_l)[:, :, tf.newaxis, tf.newaxis, :]
+    threshold_mask_g = create_threshold_mask(inp_g)[:, :, tf.newaxis, tf.newaxis, :]
+    threshold_mask = create_threshold_mask(inp_l)[:, :, tf.newaxis, tf.newaxis, :]
 
     look_ahead_mask = create_look_ahead_mask(tf.shape(tar)[1])
-    dec_target_padding_mask = create_padding_mask_tar(tar)[:, tf.newaxis, tf.newaxis, tf.newaxis, :]
-    combined_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
+    dec_target_threshold_mask = create_threshold_mask_tar(tar)[:, tf.newaxis, tf.newaxis, tf.newaxis, :]
+    combined_mask = tf.maximum(dec_target_threshold_mask, look_ahead_mask)
 
-    return padding_mask_g, padding_mask, combined_mask
+    return threshold_mask_g, threshold_mask, combined_mask
 
 
 if __name__ == "__main__":
