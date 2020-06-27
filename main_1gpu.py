@@ -35,8 +35,8 @@ parser.add_argument('--conv_filter', default=d_model, help='dimension of project
 weights_t = np.array([1 for _ in range(12)], dtype=np.float32)[:, np.newaxis]   # Joint training weights for time steps
 weights_f = np.array([1 for _ in range(2)], dtype=np.float32)[np.newaxis, :]    # Joint training weights for features
 weights = weights_t * weights_f
-weights[0, :] = weights[0, :] * 0.5
-weights[1:, :] = weights[1:, :] * 0.5/11
+weights[0, :] = weights[0, :] * 12 * 0.5
+weights[1:, :] = weights[1:, :] * 12 * (1 - 0.5)/11
 parser.add_argument('--MAX_EPOCH', default=200, help='Max epoch')
 parser.add_argument('--BATCH_SIZE', default=64, help='batch size for each GPU')
 parser.add_argument('--warmup_steps', default=64000, help='warm up step')
