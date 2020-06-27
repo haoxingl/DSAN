@@ -2,7 +2,7 @@ import json, codecs
 
 
 class EarlystopHelper:
-    def __init__(self, patiences=[5, 10], threshold=0.01, error_delta=0):
+    def __init__(self, patiences=[5, 5], threshold=0.01, error_delta=0):
         assert len(patiences) == 2
         self.patiences = patiences
         self.threshold = threshold

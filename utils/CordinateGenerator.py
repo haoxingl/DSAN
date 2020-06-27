@@ -60,8 +60,3 @@ class CordinateGenerator:
         else:
             cor = '[{}, {}]'.format(self.l_half, self.l_half)
         return self.dict[cor]
-
-
-if __name__ == "__main__":
-    g = CordinateGenerator(16, 12, 64)
-    mtx_dict = g.init_dict()

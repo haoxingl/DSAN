@@ -9,10 +9,9 @@ from tensorflow.keras.utils import get_custom_objects
 def gelu(x):
     return 0.5 * x * (1 + tf.tanh(tf.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3))))
 
-
 get_custom_objects().update({'gelu': layers.Activation(gelu)})
 
-act = 'relu'
+act = 'gelu'
 
 
 def get_angles(pos, i, d_model):
@@ -77,9 +76,9 @@ def scaled_dot_product_attention(q, k, v, mask=None):
     return output, attention_weights
 
 
-class MultiHeadAttention(layers.Layer):
+class MultiSpaceAttention(layers.Layer):
     def __init__(self, d_model, n_head, self_att=True):
-        super(MultiHeadAttention, self).__init__()
+        super(MultiSpaceAttention, self).__init__()
         self.d_model = d_model
         self.n_head = n_head
         self.self_att = self_att
@@ -143,7 +142,7 @@ class EncoderLayer(layers.Layer):
     def __init__(self, d_model, num_heads, dff, dpo_rate=0.1):
         super(EncoderLayer, self).__init__()
 
-        self.mha = MultiHeadAttention(d_model, num_heads)
+        self.msa = MultiSpaceAttention(d_model, num_heads)
         self.ffn = point_wise_feed_forward_network(d_model, dff)
 
         self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
@@ -153,7 +152,7 @@ class EncoderLayer(layers.Layer):
         self.dropout2 = layers.Dropout(dpo_rate)
 
     def call(self, x, training, mask):
-        attn_output, _ = self.mha(x, x, x, mask)
+        attn_output, _ = self.msa(x, x, x, mask)
         attn_output = self.dropout1(attn_output, training=training)
         out1 = self.layernorm1(x + attn_output)
 
@@ -170,8 +169,8 @@ class DecoderLayer(layers.Layer):
 
         self.revert_q = revert_q
 
-        self.mha1 = MultiHeadAttention(d_model, n_head)
-        self.mha2 = MultiHeadAttention(d_model, n_head, self_att=False)
+        self.msa1 = MultiSpaceAttention(d_model, n_head)
+        self.msa2 = MultiSpaceAttention(d_model, n_head, self_att=False)
 
         self.ffn = point_wise_feed_forward_network(d_model, dff)
 
@@ -183,17 +182,17 @@ class DecoderLayer(layers.Layer):
         self.dropout2 = layers.Dropout(r_d)
         self.dropout3 = layers.Dropout(r_d)
 
-    def call(self, x, kv, training, look_ahead_mask, padding_mask):
-        attn1, attn_weights_block1 = self.mha1(x, x, x, look_ahead_mask)
+    def call(self, x, kv, training, look_ahead_mask, threshold_mask):
+        attn1, attn_weights_block1 = self.msa1(x, x, x, look_ahead_mask)
         attn1 = self.dropout1(attn1, training=training)
         out1 = self.layernorm1(attn1 + x)
 
         if self.revert_q:
             out1_r = tf.transpose(out1, perm=[0, 2, 1, 3])
-            attn2, attn_weights_block2 = self.mha2(kv, kv, out1_r, padding_mask)
+            attn2, attn_weights_block2 = self.msa2(kv, kv, out1_r, threshold_mask)
             attn2 = tf.transpose(attn2, perm=[0, 2, 1, 3])
         else:
-            attn2, attn_weights_block2 = self.mha2(kv, kv, out1, padding_mask)
+            attn2, attn_weights_block2 = self.msa2(kv, kv, out1, threshold_mask)
         attn2 = self.dropout2(attn2, training=training)
         out2 = self.layernorm2(attn2 + out1)
 
@@ -223,7 +222,7 @@ class DAE(layers.Layer):
         self.enc_g = [EncoderLayer(d_model, n_head, dff, r_d) for _ in range(n_layer)]
         self.enc_l = [DecoderLayer(d_model, n_head, dff, r_d) for _ in range(n_layer)]
 
-    def call(self, x, x_g, ex, cors, cors_g, training, padding_mask, padding_mask_g):
+    def call(self, x, x_g, ex, cors, cors_g, training, threshold_mask, threshold_mask_g):
         attention_weights = {}
 
         shape = tf.shape(x)
@@ -249,10 +248,10 @@ class DAE(layers.Layer):
         x_g = self.dropout_g(x_g, training=training)
 
         for i in range(self.n_layer):
-            x_g = self.enc_g[i](x_g, training, padding_mask_g)
+            x_g = self.enc_g[i](x_g, training, threshold_mask_g)
 
         for i in range(self.n_layer):
-            x, block1, block2 = self.enc_l[i](x, x_g, training, padding_mask, padding_mask_g)
+            x, block1, block2 = self.enc_l[i](x, x_g, training, threshold_mask, threshold_mask_g)
             attention_weights['dae_layer{}_block1'.format(i + 1)] = block1
             attention_weights['dae_layer{}_block2'.format(i + 1)] = block2
 
@@ -275,7 +274,7 @@ class SAD(layers.Layer):
         self.dec_s = [DecoderLayer(d_model, n_head, dff, r_d) for _ in range(n_layer)]
         self.dec_t = [DecoderLayer(d_model, n_head, dff, r_d, revert_q=True) for _ in range(n_layer)]
 
-    def call(self, x, ex, dae_output, training, look_ahead_mask, padding_mask):
+    def call(self, x, ex, dae_output, training, look_ahead_mask, threshold_mask):
         attention_weights = {}
 
         ex_enc = self.ex_encoder(ex)
@@ -316,9 +315,9 @@ class DSAN(Model):
         self.final_layer = layers.Dense(2, activation='tanh')
 
     def call(self, dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, training,
-             padding_mask, padding_mask_g, look_ahead_mask):
+             threshold_mask, threshold_mask_g, look_ahead_mask):
         dae_output, attention_weights_dae = \
-            self.dae(dae_inp, dae_inp_g, dae_inp_ex, cors, cors_g, training, padding_mask, padding_mask_g)
+            self.dae(dae_inp, dae_inp_g, dae_inp_ex, cors, cors_g, training, threshold_mask, threshold_mask_g)
 
         sad_output, attention_weights_sad = \
             self.sad(sad_inp, sad_inp_ex, dae_output, training, look_ahead_mask, None)
