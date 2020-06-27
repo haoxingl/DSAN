@@ -1,7 +1,3 @@
-"""A helper used for early stop.
-Its status can be saved along with the model for checkpoints.
-"""
-
 import json, codecs
 
 

@@ -8,18 +8,18 @@ from utils.tools import ResultWriter
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='taxi', help='taxi or bike or ctm')
-parser.add_argument('--gpu_ids', default='5', help='indexes of gpus to use')
+parser.add_argument('--gpu_ids', default='0', help='indexes of gpus to use')
 parser.add_argument('--memory_growth', default=False, help='allow memory growth')
-parser.add_argument('--index', default='1GPU_64', help='model index')
-parser.add_argument('--test_name', default='warmup_steps', help='for fine tuning')
-parser.add_argument('--hyp', default=[128000, 64000, 32000, 16000, 8000], help='for fine tuning')
-parser.add_argument('--run_time', default=3, help='indexes of gpus to use')
+parser.add_argument('--index', default='SOTA_1GPU', help='model index')
+parser.add_argument('--test_name', default=None, help='for fine tuning')
+parser.add_argument('--hyp', default=[None], help='for fine tuning')
+parser.add_argument('--run_time', default=10, help='indexes of gpus to use')
 parser.add_argument('--remove_old_files', default=True, help='remove old results, checkpoints, and tensorboard')
-parser.add_argument('--load_saved_data', default=True, help='load saved data sets')
+parser.add_argument('--load_saved_data', default=False, help='load saved data sets')
 parser.add_argument('--no_save', default=False, help='for dev only')
 parser.add_argument('--test_model', default=None, help='for dev only')
 parser.add_argument('--mixed_precision', default=False, help='enable mixed precision')
-parser.add_argument('--always_test', default=5, help='for dev only')
+parser.add_argument('--always_test', default=None, help='for dev only')
 
 """ Model hyperparameters """
 d_model = 64
@@ -35,14 +35,14 @@ parser.add_argument('--conv_filter', default=d_model, help='dimension of project
 weights_t = np.array([1 for _ in range(12)], dtype=np.float32)[:, np.newaxis]   # Joint training weights for time steps
 weights_f = np.array([1 for _ in range(2)], dtype=np.float32)[np.newaxis, :]    # Joint training weights for features
 weights = None
-parser.add_argument('--MAX_EPOCH', default=250, help='Max epoch')
+parser.add_argument('--MAX_EPOCH', default=200, help='Max epoch')
 parser.add_argument('--BATCH_SIZE', default=64, help='batch size for each GPU')
 parser.add_argument('--warmup_steps', default=64000, help='warm up step')
 parser.add_argument('--verbose_train', default=1, help='1: enable verbose, 0: disable verbose')
 parser.add_argument('--weights', default=weights, help='joint training weights')
 parser.add_argument('--es_patience', default=5, help='early stop patience (epoch)')
 parser.add_argument('--es_threshold', default=0.01, help='for early stop helper')
-parser.add_argument('--es_epoch', default=120, help='epoch after which to start early stop')
+parser.add_argument('--es_epoch', default=60, help='epoch after which to start early stop')
 parser.add_argument('--model_summary', default=True, help='print model summary')
 
 """ Data hyperparameters """

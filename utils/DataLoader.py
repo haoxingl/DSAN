@@ -1,19 +1,3 @@
-"""Load data.
-The training, validation, and test data sets are constructed.
-They can be saved as the numpy files for quick loading in the future.
-
-Args:
-  pre_shuffle: shuffle the training and validation set before constructing the TF data sets
-  same_padding: use same_padding for filling empty grids for marginal inputs
-  test_model: used for debugging
-  l_half: Only used when limiting the global input size
-  st_revert: revert the spatial and temporal axes
-  no_save: for debugging only
-
-Returns:
-  inputs and ground truth of training instance
-"""
-
 import numpy as np
 from utils.CordinateGenerator import CordinateGenerator
 
@@ -336,26 +320,3 @@ class DataLoader:
             y = np.split(y[random_index, ...], (train_size,))
 
         return dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y
-
-
-if __name__ == "__main__":
-    dl = DataLoader(64)
-    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data()
-    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(datatype='test')
-    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
-    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
-                                                                                            datatype='test')
-
-    dl = DataLoader(64, dataset='bike')
-    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data()
-    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(datatype='test')
-    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
-    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
-                                                                                datatype='test')
-
-    dl = DataLoader(64, dataset='ctm')
-    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data()
-    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(datatype='test')
-    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True)
-    dae_inp_g, dae_inp, dae_inp_ex, sad_inp, sad_inp_ex, cors, cors_g, y = dl.generate_data(load_saved_data=True,
-                                                                                datatype='test')

@@ -4,7 +4,6 @@ from utils.DataLoader import DataLoader as dl
 import tensorflow as tf
 
 
-"""Generate TF data sets"""
 class DatasetGenerator:
     def __init__(self, d_model=64, dataset='taxi', batch_size=64, n_w=1, n_d=3, n_wd_times=1, n_p=1, n_before=0,
                  n_pred=12, l_half=3, l_half_g=None, pre_shuffle=True, same_padding=False, test_model=False):
@@ -160,10 +159,3 @@ def create_masks(inp_g, inp_l, tar):
     combined_mask = tf.maximum(dec_target_threshold_mask, look_ahead_mask)
 
     return threshold_mask_g, threshold_mask, combined_mask
-
-
-if __name__ == "__main__":
-    dg = DatasetGenerator()
-    a = dg.build_dataset(load_saved_data=True)
-    b = dg.build_dataset(datatype='val', load_saved_data=True)
-    c = dg.build_dataset(datatype='test', load_saved_data=True)
