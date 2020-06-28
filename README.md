@@ -37,7 +37,7 @@ We tested our model on two different machines:
  1. A duo Intel(R) Xeon(R) Silver 4116 CPU @ 2.10GHz machine with 256G RAM and 4 RTX 2080 Ti GPUs
  2. NVIDIA DGX-2
 
-We configured the prerequisites on the first machine manually and use the aforementioned docker on NVIDIA DGX-2 without any modification. Both resulted in the same outcome, and the only difference is the training time. If you have problem configuring the environment, pulling the official docker image is recommended.
+We configured the prerequisites on the first machine manually and used the aforementioned docker on NVIDIA DGX-2 without any modification. Both resulted in the same outcome, and the only difference is the training time. If you have problems configuring the environment, pulling the official docker image is recommended.
 
 ## 3. Pretrained DSAN Checkpoints
 
