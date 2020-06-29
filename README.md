@@ -49,10 +49,11 @@ We have provided some pretrained checkpoints in the `checkpoints.zip` file with 
 
 Checkpoints info:
 
-| Checkpoint | Data set | #GPU | Batch Size | Mem per GPU |
-| ------ | ------ | ------ | :------: | :------: |
-| taxi-64x1 | Taxi-NYC | V100 x 1 | 64 | 4.8G |
-| taxi-256x2 | Taxi-NYC | V100 x 2 | 512 | 17.6G |
+| Checkpoint | Dataset | #GPU | Batch Size | Mem per GPU | JT Weights |
+| ------ | ------ | ------ | :------: | :------: | :------: |
+| taxi-64x1 | Taxi-NYC | V100 x 1 | 64 | 4.8G | equal |
+| taxi-256x2 | Taxi-NYC | V100 x 2 | 512 | 17.6G | equal |
+** <em>JT Weights</em> denotes joint training weights.
 
 You don't have to use the same GPUs listed here but to make sure that your GPU Mem is large enough.
 
