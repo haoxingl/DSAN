@@ -7,19 +7,19 @@ import numpy as np
 from utils.tools import ResultWriter
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
-parser.add_argument('--dataset', default='taxi', help='taxi or bike or ctm')
-parser.add_argument('--gpu_ids', default='0', help='indexes of gpus to use')
+parser.add_argument('--dataset', default='ctm', help='taxi or bike or ctm')
+parser.add_argument('--gpu_ids', default='1', help='indexes of gpus to use')
 parser.add_argument('--memory_growth', default=False, help='allow memory growth')
-parser.add_argument('--index', default='1GPU_64', help='model index')
+parser.add_argument('--index', default='64x1_always', help='model index')
 parser.add_argument('--test_name', default=None, help='for fine tuning')
 parser.add_argument('--hyp', default=[None], help='for fine tuning')
-parser.add_argument('--run_time', default=10, help='indexes of gpus to use')
+parser.add_argument('--run_time', default=1, help='indexes of gpus to use')
 parser.add_argument('--remove_old_files', default=True, help='remove old results, checkpoints, and tensorboard')
-parser.add_argument('--load_saved_data', default=True, help='load saved data sets')
+parser.add_argument('--load_saved_data', default=False, help='load saved data sets')
 parser.add_argument('--no_save', default=False, help='for dev only')
 parser.add_argument('--test_model', default=None, help='for dev only')
 parser.add_argument('--mixed_precision', default=True, help='enable mixed precision')
-parser.add_argument('--always_test', default=None, help='for dev only')
+parser.add_argument('--always_test', default=1, help='for dev only')
 
 """ Model hyperparameters """
 d_model = 64
@@ -70,7 +70,7 @@ def remove_oldfiles(model_index):
     except:
         pass
     try:
-        shutil.rmtree(os.environ['HOME'] + '/tensorboard/dsan/{}'.format(model_index), ignore_errors=True)
+        shutil.rmtree('tensorboard/dsan/{}'.format(model_index), ignore_errors=True)
     except:
         pass
 
