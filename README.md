@@ -27,6 +27,8 @@ Model architecture:
 
 Prerequisites:
 
+ - Ubuntu Server 18.04 or later
+ - Python 3.7
  - Tensorflow & Tensorflow-GPU: 2.2.0
  - CUDA 10.1
  - CUDNN 7.6.5
@@ -82,7 +84,11 @@ You can check the parameters by running
 
 or adjust them inside the `main` files.
 
-## 5. Train on your own data
+## 5. Results, checkpoints, and Tensorboard
+
+When running DSAN, the results of training, evaluation, and testing are automatically written into a `txt` file in `results` folder. Besides, the model also executes `summary_write` to create Tensorboard output in `tensorboard` folder. The checkpoints mentioned above are delivered to `checkpoints` folder.
+
+## 6. Train on your own data
 
 If you want to use your own data, you can check the `utils/dataloader.py` and `data_parameters.py` files and see how to preprocess your own data. Basically, DSAN requires 7 inputs:
 
