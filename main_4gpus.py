@@ -70,7 +70,7 @@ def remove_oldfiles(model_index):
     except:
         pass
     try:
-        shutil.rmtree(os.environ['HOME'] + '/tensorboard/dsan/{}'.format(model_index), ignore_errors=True)
+        shutil.rmtree('tensorboard/dsan/{}'.format(model_index), ignore_errors=True)
     except:
         pass
 
