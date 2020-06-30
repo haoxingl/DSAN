@@ -7,8 +7,8 @@ import numpy as np
 from utils.tools import ResultWriter
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
-parser.add_argument('--dataset', default='bike', help='taxi or bike or ctm')
-parser.add_argument('--gpu_ids', default='0', help='indexes of gpus to use')
+parser.add_argument('--dataset', default='ctm', help='taxi or bike or ctm')
+parser.add_argument('--gpu_ids', default='2', help='indexes of gpus to use')
 parser.add_argument('--memory_growth', default=False, help='allow memory growth')
 parser.add_argument('--index', default='64x1_always', help='model index')
 parser.add_argument('--test_name', default=None, help='for fine tuning')
@@ -37,12 +37,12 @@ weights_f = np.array([1 for _ in range(2)], dtype=np.float32)[np.newaxis, :]    
 weights = None
 parser.add_argument('--MAX_EPOCH', default=200, help='Max epoch')
 parser.add_argument('--BATCH_SIZE', default=64, help='batch size for each GPU')
-parser.add_argument('--warmup_steps', default=32000, help='warm up step')
+parser.add_argument('--warmup_steps', default=64000, help='warm up step')
 parser.add_argument('--verbose_train', default=1, help='1: enable verbose, 0: disable verbose')
 parser.add_argument('--weights', default=weights, help='joint training weights')
 parser.add_argument('--es_patience', default=5, help='early stop patience (epoch)')
 parser.add_argument('--es_threshold', default=0.01, help='for early stop helper')
-parser.add_argument('--es_epoch', default=20, help='epoch after which to start early stop')
+parser.add_argument('--es_epoch', default=60, help='epoch after which to start early stop')
 parser.add_argument('--model_summary', default=True, help='print model summary')
 
 """ Data hyperparameters """
