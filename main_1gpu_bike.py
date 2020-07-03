@@ -8,7 +8,7 @@ from utils.tools import ResultWriter
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='bike', help='taxi or bike or ctm')
-parser.add_argument('--gpu_ids', default='1', help='indexes of gpus to use')
+parser.add_argument('--gpu_ids', default='3', help='indexes of gpus to use')
 parser.add_argument('--memory_growth', default=False, help='allow memory growth')
 parser.add_argument('--index', default='64x1', help='model index')
 parser.add_argument('--test_name', default=None, help='for fine tuning')
@@ -37,7 +37,7 @@ weights_f = np.array([1 for _ in range(2)], dtype=np.float32)[np.newaxis, :]    
 weights = None
 parser.add_argument('--MAX_EPOCH', default=200, help='Max epoch')
 parser.add_argument('--BATCH_SIZE', default=64, help='batch size for each GPU')
-parser.add_argument('--warmup_steps', default=32000, help='warm up step')
+parser.add_argument('--warmup_steps', default=16000, help='warm up step')
 parser.add_argument('--verbose_train', default=1, help='1: enable verbose, 0: disable verbose')
 parser.add_argument('--weights', default=weights, help='joint training weights')
 parser.add_argument('--es_patience', default=3, help='early stop patience (epoch)')
