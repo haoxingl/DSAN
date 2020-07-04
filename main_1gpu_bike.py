@@ -19,7 +19,7 @@ parser.add_argument('--load_saved_data', default=False, help='load saved data se
 parser.add_argument('--no_save', default=False, help='for dev only')
 parser.add_argument('--test_model', default=None, help='for dev only')
 parser.add_argument('--mixed_precision', default=True, help='enable mixed precision')
-parser.add_argument('--always_test', default=None, help='for dev only')
+parser.add_argument('--always_test', default=1, help='for dev only')
 
 """ Model hyperparameters """
 d_model = 64
