@@ -19,7 +19,7 @@ parser.add_argument('--load_saved_data', default=False, help='load saved data se
 parser.add_argument('--no_save', default=False, help='for dev only')
 parser.add_argument('--test_model', default=None, help='for dev only')
 parser.add_argument('--mixed_precision', default=False, help='enable mixed precision')
-parser.add_argument('--always_test', default=None, help='for dev only')
+parser.add_argument('--always_test', default=1, help='for dev only')
 
 """ Model hyperparameters """
 d_model = 64
@@ -40,7 +40,7 @@ weights = None
 # weights[1:, :] = weights[1:, :] * 12 * (1 - 0.5)/11
 parser.add_argument('--MAX_EPOCH', default=200, help='Max epoch')
 parser.add_argument('--BATCH_SIZE', default=64, help='batch size for each GPU')
-parser.add_argument('--warmup_steps', default=8000, help='warm up step')
+parser.add_argument('--warmup_steps', default=4000, help='warm up step')
 parser.add_argument('--verbose_train', default=1, help='1: enable verbose, 0: disable verbose')
 parser.add_argument('--weights', default=weights, help='joint training weights')
 parser.add_argument('--es_patience', default=5, help='early stop patience (epoch)')
