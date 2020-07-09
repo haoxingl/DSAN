@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='bike', help='taxi or bike or ctm')
 parser.add_argument('--gpu_ids', default='1', help='indexes of gpus to use')
 parser.add_argument('--memory_growth', default=False, help='allow memory growth')
-parser.add_argument('--index', default='64x1_always', help='model index')
+parser.add_argument('--index', default='64x1', help='model index')
 parser.add_argument('--test_name', default=None, help='for fine tuning')
 parser.add_argument('--hyp', default=[None], help='for fine tuning')
 parser.add_argument('--run_time', default=5, help='indexes of gpus to use')
@@ -19,7 +19,7 @@ parser.add_argument('--load_saved_data', default=True, help='load saved data set
 parser.add_argument('--no_save', default=False, help='for dev only')
 parser.add_argument('--test_model', default=None, help='for dev only')
 parser.add_argument('--mixed_precision', default=True, help='enable mixed precision')
-parser.add_argument('--always_test', default=1, help='for dev only')
+parser.add_argument('--always_test', default=None, help='for dev only')
 
 """ Model hyperparameters """
 d_model = 64
@@ -42,7 +42,7 @@ parser.add_argument('--verbose_train', default=1, help='1: enable verbose, 0: di
 parser.add_argument('--weights', default=weights, help='joint training weights')
 parser.add_argument('--es_patience', default=3, help='early stop patience (epoch)')
 parser.add_argument('--es_threshold', default=0.01, help='for early stop helper')
-parser.add_argument('--es_epoch', default=20, help='epoch after which to start early stop')
+parser.add_argument('--es_epoch', default=5, help='epoch after which to start early stop')
 parser.add_argument('--model_summary', default=True, help='print model summary')
 
 """ Data hyperparameters """
