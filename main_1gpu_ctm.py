@@ -42,7 +42,7 @@ parser.add_argument('--verbose_train', default=1, help='1: enable verbose, 0: di
 parser.add_argument('--weights', default=weights, help='joint training weights')
 parser.add_argument('--es_patience', default=5, help='early stop patience (epoch)')
 parser.add_argument('--es_threshold', default=0.01, help='for early stop helper')
-parser.add_argument('--es_epoch', default=15, help='epoch after which to start early stop')
+parser.add_argument('--es_epoch', default=18, help='epoch after which to start early stop')
 parser.add_argument('--model_summary', default=True, help='print model summary')
 
 """ Data hyperparameters """
