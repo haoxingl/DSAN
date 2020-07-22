@@ -1,4 +1,5 @@
 new_1.py
+main_1gpu_ctm.py
 data_ctm.py
 results/*
 old/*
