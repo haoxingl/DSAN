@@ -15,10 +15,10 @@ parser.add_argument('--test_name', default=None, help='for fine tuning')
 parser.add_argument('--hyp', default=[None], help='for fine tuning')
 parser.add_argument('--run_time', default=5, help='indexes of gpus to use')
 parser.add_argument('--remove_old_files', default=True, help='remove old results, checkpoints, and tensorboard')
-parser.add_argument('--load_saved_data', default=True, help='load saved data sets')
+parser.add_argument('--load_saved_data', default=False, help='load saved data sets')
 parser.add_argument('--no_save', default=False, help='for dev only')
 parser.add_argument('--test_model', default=None, help='for dev only')
-parser.add_argument('--mixed_precision', default=True, help='enable mixed precision')
+parser.add_argument('--mixed_precision', default=False, help='enable mixed precision')
 parser.add_argument('--always_test', default=None, help='for dev only')
 
 """ Model hyperparameters """
@@ -42,8 +42,8 @@ parser.add_argument('--verbose_train', default=1, help='1: enable verbose, 0: di
 parser.add_argument('--weights', default=weights, help='joint training weights')
 parser.add_argument('--es_patience', default=5, help='early stop patience (epoch)')
 parser.add_argument('--es_threshold', default=0.01, help='for early stop helper')
-parser.add_argument('--es_epoch', default=20, help='epoch after which to start early stop')
-parser.add_argument('--model_summary', default=True, help='print model summary')
+parser.add_argument('--es_epoch', default=15, help='epoch after which to start early stop')
+parser.add_argument('--model_summary', default=False, help='print model summary')
 
 """ Data hyperparameters """
 parser.add_argument('--n_w', default=1, help='num of previous weeks to consider')
