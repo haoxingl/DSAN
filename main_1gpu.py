@@ -8,7 +8,7 @@ from utils.tools import ResultWriter
 
 parser = argparse.ArgumentParser(description='Hyperparameters')
 parser.add_argument('--dataset', default='bike', help='taxi or bike or ctm')
-parser.add_argument('--gpu_ids', default='6', help='indexes of gpus to use')
+parser.add_argument('--gpu_ids', default='0', help='indexes of gpus to use')
 parser.add_argument('--memory_growth', default=False, help='allow memory growth')
 parser.add_argument('--index', default='64x1', help='model index')
 parser.add_argument('--test_name', default=None, help='for fine tuning')
