@@ -241,7 +241,7 @@ class TrainModel:
             check_flag = False
             es_helper = EarlystopHelper(self.es_patiences, self.es_threshold)
             summary_writer = tf.summary.create_file_writer(
-                os.environ['HOME'] + '/tensorboard/dsan/{}'.format(self.model_index))
+                'tensorboard/dsan/{}'.format(self.model_index))
             step_cnt = 0
             last_epoch = 0
 
