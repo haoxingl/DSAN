@@ -55,6 +55,7 @@ Checkpoints info:
 | ------ | ------ | ------ | :------: | :------: | :------: |
 | taxi-64x1 | Taxi-NYC | V100 x 1 | 64 | 4.8G | equal |
 | taxi-256x2 | Taxi-NYC | V100 x 2 | 512 | 17.6G | equal |
+| bike-64x1 | Bike-NYC | 2080Ti x 1 | 64 | < 2G | equal |
 
 ** <em>JT Weights</em> denotes the setting of joint training weights.
 
