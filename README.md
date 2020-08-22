@@ -36,7 +36,7 @@ Prerequisites:
 
 Docker is strongly recommended:
 
-    docker pull tensorflow/tensorflow:2.2.0-gpu
+    docker pull tensorflow/tensorflow:2.3.0-gpu
 
 We have tested our model on two different machines:
 
