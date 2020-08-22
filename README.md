@@ -28,8 +28,8 @@ Model architecture:
 Prerequisites:
 
  - Ubuntu Server 18.04
- - Python 3.7
- - Tensorflow & Tensorflow-GPU: 2.2.0
+ - Python 3.6
+ - Tensorflow & Tensorflow-GPU: 2.3.0
  - CUDA 10.1
  - CUDNN 7.6.5
 
