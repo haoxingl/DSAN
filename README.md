@@ -90,11 +90,11 @@ When running DSAN, the results of training, evaluation, and testing are automati
 
 ## 6. Train on your own data
 
-If you want to use your own data, you can check the `utils/dataloader.py` and `data_parameters.py` files and see how to preprocess your own data. Basically, DSAN requires 7 inputs:
+If you want to use your own data, you can check the `utils/dataloader.py` and `data_parameters.py` files and see how to preprocess your own data. Basically, DSAN requires 7 inputs, which are detailed in the experimental section and the appendix in our paper:
 
  - dae_inp_g: Enc-G input, shape: (batch_size, his_time_step, height_g, width_g, features)
  - dae_inp: Enc-D input, shape: (batch_size, his_time_step, height_d, width_d, features)
- - dae_inp_ex: external information. If you don't have any, just use the one-hot time vectors, shape: (batch_size, his_time_step, one_hot)
+ - dae_inp_ex: external information. If you don't have any, just use the one-hot time information vectors, shape: (batch_size, his_time_step, one_hot)
  - sad_inp: SAD input, shape: (batch_size, future_time_step, features)
  - sad_inp_ex: external information for `sad_inp`, shape: (batch_size, future_time_step, one_hot)
  - cors_g
