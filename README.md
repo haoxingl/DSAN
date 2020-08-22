@@ -72,7 +72,7 @@ If you have multiple powerful GPUs, let's say 4 NVIDIA RTX 2080 Ti, you can run
 
     python3 main_4gpus.py
 
-Actually, the two main files are basically the same. The differences are the settings of `gpu_ids`, `BATCH_SIZE`, `warmup_steps`, and `es_epoch` parameters. Technically, training on multiple GPUs is faster. On our first machine, using 1 GPU takes 9 ~ 16 hours while 4 GPUs take 3 ~ 5 hours. You can also decide how many GPUs you want to use based on your own machine.
+Actually, the two main files are basically the same. The differences are the settings of `gpu_ids`, `BATCH_SIZE`, `warmup_steps`, and `es_epoch` parameters. Technically, training on multiple GPUs is faster. On our first machine, using 1 GPU takes 9 ~ 16 hours while 4 GPUs take 3 ~ 5 hours. Of course, `BATCH_SIZE` also matters, setting it to `512` should apparently accelerate the training compared to `64`. Besides, the `warmup_steps` and `es_epoch` should be changed accordingly as well. You can also decide how many GPUs you want to use based on your own machine.
 
 To use different data sets, run
 
