@@ -1,13 +1,16 @@
 # DSAN (Dynamic Switch-Attention Network)
 
-[1] Haoxing Lin, Rufan Bai, Weijia Jia, Xinyu Yang, Yongjian You. Preserving Dynamic Attention for Long-Term Spatial-Temporal Prediction. KDD 2020. Arxiv link: https://arxiv.org/abs/2006.08849
+[1] Haoxing Lin, Rufan Bai, Weijia Jia, Xinyu Yang, Yongjian You. Preserving Dynamic Attention for Long-Term Spatial-Temporal Prediction. KDD 2020. ACM Digital Library: https://dl.acm.org/doi/10.1145/3394486.3403046
 
  
     @inproceedings{dsan,
-        title={Preserving Dynamic Attention for Long-Term Spatial-Temporal Prediction},
-        author={Haoxing Lin and Rufan Bai and Weijia Jia and Xinyu Yang and Yongjian You},
-        booktitle={Proceedings of the 26th ACM SIGKDD Conference on Knowledge Discovery and Data Mining (KDD '20)},
-        year={2020} 
+        title = {Preserving Dynamic Attention for Long-Term Spatial-Temporal Prediction},
+        author = {Lin, Haoxing and Bai, Rufan and Jia, Weijia and Yang, Xinyu and You, Yongjian},
+        year = {2020},
+        doi = {10.1145/3394486.3403046},
+        booktitle = {Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining},
+        pages = {36–46},
+        series = {KDD '20}
     }
 
 
